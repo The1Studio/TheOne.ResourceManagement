@@ -1,0 +1,36 @@
+{
+  "name": "UniT.ResourceManagement",
+  "rootNamespace": "UniT.ResourceManagement",
+  "references": [
+    "UniT.Extensions",
+    "UniT.Logging",
+    "UniT.DI",
+    "Zenject",
+    "UniTask",
+    "UniTask.Addressables",
+    "Unity.Addressables",
+    "Unity.ResourceManager"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.frostbun.unit",
+      "expression": "",
+      "define": "UNIT_DI"
+    },
+    {
+      "name": "com.svermeulen.extenject",
+      "expression": "",
+      "define": "UNIT_ZENJECT"
+    },
+    {
+      "name": "com.cysharp.unitask",
+      "expression": "",
+      "define": "UNIT_UNITASK"
+    },
+    {
+      "name": "com.unity.addressables",
+      "expression": "",
+      "define": "UNIT_ADDRESSABLES"
+    }
+  ]
+}
