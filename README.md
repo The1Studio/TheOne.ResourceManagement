@@ -1,1 +1,1 @@
-# Resource manager for Unity
+# Resource Manager for Unity
