@@ -203,7 +203,7 @@ namespace UniT.ResourceManagement
 
         void IAssetsManager.Unload(string key)
         {
-            if (!this.cache.TryRemove(key, out var asset))
+            if (!this.cache.Remove(key, out var asset))
             {
                 this.logger.Warning($"Trying to unload {key} that was not loaded");
                 return;
