@@ -16,7 +16,7 @@ namespace UniT.ResourceManagement
     public sealed class ResourceAssetsManager : AssetsManager
     {
         [Preserve]
-        public ResourceAssetsManager(ILoggerManager loggerManager) : base(loggerManager)
+        public ResourceAssetsManager(ILoggerManager loggerManager, string? scope = null) : base(loggerManager, scope)
         {
         }
 

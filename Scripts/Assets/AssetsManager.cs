@@ -20,17 +20,21 @@ namespace UniT.ResourceManagement
     {
         #region Constructor
 
+        private readonly string? scope;
         private readonly ILogger logger;
 
         private readonly Dictionary<string, Object> cache = new Dictionary<string, Object>();
 
-        protected AssetsManager(ILoggerManager loggerManager)
+        protected AssetsManager(ILoggerManager loggerManager, string? scope)
         {
+            this.scope  = scope.NullIfWhitespace();
             this.logger = loggerManager.GetLogger(this);
             this.logger.Debug("Constructed");
         }
 
         #endregion
+
+        private string GetScopedKey(string key) => this.scope is null ? key : $"{this.scope}/{key}";
 
         #region Sync
 
@@ -72,7 +76,7 @@ namespace UniT.ResourceManagement
             {
                 return (T)this.cache.GetOrAdd(key, () =>
                 {
-                    var asset = this.Load<T>(key);
+                    var asset = this.Load<T>(this.GetScopedKey(key));
                     if (asset is null) throw new NullReferenceException($"{key} is null");
                     this.logger.Debug($"Loaded {key}");
                     return asset;
@@ -125,7 +129,7 @@ namespace UniT.ResourceManagement
         private UniTask<T> LoadOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
         {
             return this.cache.GetOrAddAsync(key, () =>
-                    this.LoadAsync<T>(key, progress, cancellationToken)
+                    this.LoadAsync<T>(this.GetScopedKey(key), progress, cancellationToken)
                         .ContinueWith(asset =>
                         {
                             if (asset is null) throw new NullReferenceException($"{key} is null");
@@ -172,7 +176,7 @@ namespace UniT.ResourceManagement
             return this.cache.GetOrAddAsync(
                 key,
                 callback => this.LoadAsync<T>(
-                    key,
+                    this.GetScopedKey(key),
                     asset =>
                     {
                         if (asset is null) throw new NullReferenceException($"{key} is null");

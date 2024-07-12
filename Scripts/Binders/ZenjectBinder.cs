@@ -7,15 +7,15 @@ namespace UniT.ResourceManagement
 
     public static class ZenjectBinder
     {
-        public static void BindResourceManagers(this DiContainer container)
+        public static void BindResourceManagers(this DiContainer container, string? scope = null)
         {
             if (container.HasBinding<IAssetsManager>()) return;
             container.BindLoggerManager();
             #if UNIT_ADDRESSABLES
-            container.BindInterfacesTo<AddressableAssetsManager>().AsSingle();
+            container.BindInterfacesTo<AddressableAssetsManager>().AsSingle().WithArguments(scope);
             container.BindInterfacesTo<AddressableScenesManager>().AsSingle();
             #else
-            container.BindInterfacesTo<ResourceAssetsManager>().AsSingle();
+            container.BindInterfacesTo<ResourceAssetsManager>().AsSingle().WithArguments(scope);
             container.BindInterfacesTo<ResourceScenesManager>().AsSingle();
             #endif
             container.BindInterfacesTo<ExternalAssetsManager>().AsSingle();
