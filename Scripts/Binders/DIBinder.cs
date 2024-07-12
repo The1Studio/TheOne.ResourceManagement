@@ -7,18 +7,33 @@ namespace UniT.ResourceManagement
 
     public static class DIBinder
     {
-        public static void AddResourceManagers(this DependencyContainer container, string? scope = null)
+        public static void AddAssetsManager(this DependencyContainer container, string? scope = null)
         {
             if (container.Contains<IAssetsManager>()) return;
             container.AddLoggerManager();
             var loggerManager = container.Get<ILoggerManager>();
             #if UNIT_ADDRESSABLES
             container.AddInterfaces(new AddressableAssetsManager(loggerManager, scope));
-            container.AddInterfaces<AddressableScenesManager>();
             #else
             container.AddInterfaces(new ResourceAssetsManager(loggerManager, scope));
+            #endif
+        }
+
+        public static void AddScenesManager(this DependencyContainer container)
+        {
+            if (container.Contains<IScenesManager>()) return;
+            container.AddLoggerManager();
+            #if UNIT_ADDRESSABLES
+            container.AddInterfaces<AddressableScenesManager>();
+            #else
             container.AddInterfaces<ResourceScenesManager>();
             #endif
+        }
+
+        public static void AddExternalAssetsManager(this DependencyContainer container)
+        {
+            if (container.Contains<IExternalAssetsManager>()) return;
+            container.AddLoggerManager();
             container.AddInterfaces<ExternalAssetsManager>();
         }
     }
