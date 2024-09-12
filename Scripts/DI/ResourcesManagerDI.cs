@@ -1,11 +1,12 @@
 ﻿#if UNIT_DI
 #nullable enable
-namespace UniT.ResourceManagement
+namespace UniT.ResourceManagement.DI
 {
     using UniT.DI;
     using UniT.Logging;
+    using UniT.Logging.DI;
 
-    public static class DIBinder
+    public static class ResourcesManagerDI
     {
         public static void AddAssetsManager(this DependencyContainer container, string? scope = null)
         {

@@ -1,11 +1,11 @@
 #if UNIT_ZENJECT
 #nullable enable
-namespace UniT.ResourceManagement
+namespace UniT.ResourceManagement.DI
 {
-    using UniT.Logging;
+    using UniT.Logging.DI;
     using Zenject;
 
-    public static class ZenjectBinder
+    public static class ResourcesManagerZenject
     {
         public static void BindAssetsManager(this DiContainer container, string? scope = null)
         {

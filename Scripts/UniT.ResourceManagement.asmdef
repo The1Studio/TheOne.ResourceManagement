@@ -4,24 +4,12 @@
   "references": [
     "UniT.Extensions",
     "UniT.Logging",
-    "UniT.DI",
-    "Zenject",
-    "UniTask",
-    "UniTask.Addressables",
     "Unity.Addressables",
-    "Unity.ResourceManager"
+    "Unity.ResourceManager",
+    "UniTask",
+    "UniTask.Addressables"
   ],
   "versionDefines": [
-    {
-      "name": "com.frostbun.unit.di",
-      "expression": "",
-      "define": "UNIT_DI"
-    },
-    {
-      "name": "com.svermeulen.extenject",
-      "expression": "",
-      "define": "UNIT_ZENJECT"
-    },
     {
       "name": "com.cysharp.unitask",
       "expression": "",
