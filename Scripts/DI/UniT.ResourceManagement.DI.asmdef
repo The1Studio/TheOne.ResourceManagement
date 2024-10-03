@@ -2,7 +2,6 @@
   "name": "UniT.ResourceManagement.DI",
   "rootNamespace": "UniT.ResourceManagement.DI",
   "references": [
-    "UniT.Logging",
     "UniT.Logging.DI",
     "UniT.ResourceManagement",
     "UniT.DI",

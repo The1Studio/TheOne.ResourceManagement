@@ -3,7 +3,6 @@
 namespace UniT.ResourceManagement.DI
 {
     using UniT.DI;
-    using UniT.Logging;
     using UniT.Logging.DI;
 
     public static class ResourcesManagerDI
@@ -12,11 +11,10 @@ namespace UniT.ResourceManagement.DI
         {
             if (container.Contains<IAssetsManager>()) return;
             container.AddLoggerManager();
-            var loggerManager = container.Get<ILoggerManager>();
             #if UNIT_ADDRESSABLES
-            container.AddInterfaces(new AddressableAssetsManager(loggerManager, scope));
+            container.AddInterfaces<AddressableAssetsManager>(scope);
             #else
-            container.AddInterfaces(new ResourceAssetsManager(loggerManager, scope));
+            container.AddInterfaces<ResourceAssetsManager>(scope);
             #endif
         }
 
