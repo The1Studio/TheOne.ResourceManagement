@@ -47,13 +47,7 @@ namespace UniT.ResourceManagement
         #else
         protected override IEnumerator LoadAsync<T>(string key, Action<Object?> callback, IProgress<float>? progress)
         {
-            var operation = Addressables.LoadAssetAsync<T>(this.GetScopedKey(key));
-            while (!operation.IsDone)
-            {
-                progress?.Report(operation.PercentComplete);
-                yield return null;
-            }
-            callback(operation.Result);
+            return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key)).ToCoroutine(callback, progress);
         }
         #endif
     }

@@ -2,6 +2,7 @@
 namespace UniT.ResourceManagement
 {
     using System;
+    using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine.SceneManagement;
     using UnityEngine.Scripting;
@@ -43,14 +44,11 @@ namespace UniT.ResourceManagement
         #else
         IEnumerator IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, Action? callback, IProgress<float>? progress)
         {
-            var operation = SceneManager.LoadSceneAsync(sceneName, loadMode)!;
-            while (!operation.isDone)
+            return SceneManager.LoadSceneAsync(sceneName, loadMode)!.ToCoroutine(() =>
             {
-                progress?.Report(operation.progress);
-                yield return null;
-            }
-            this.logger.Debug($"Loaded {sceneName}");
-            callback?.Invoke();
+                this.logger.Debug($"Loaded {sceneName}");
+                callback?.Invoke();
+            }, progress: progress);
         }
         #endif
     }

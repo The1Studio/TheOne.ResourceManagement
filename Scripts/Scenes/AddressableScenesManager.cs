@@ -3,6 +3,7 @@
 namespace UniT.ResourceManagement
 {
     using System;
+    using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine.AddressableAssets;
     using UnityEngine.SceneManagement;
@@ -45,14 +46,11 @@ namespace UniT.ResourceManagement
         #else
         IEnumerator IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, Action? callback, IProgress<float>? progress)
         {
-            var operation = Addressables.LoadSceneAsync(sceneName, loadMode);
-            while (!operation.IsDone)
+            return Addressables.LoadSceneAsync(sceneName, loadMode).ToCoroutine(_ =>
             {
-                progress?.Report(operation.PercentComplete);
-                yield return null;
-            }
-            this.logger.Debug($"Loaded {sceneName}");
-            callback?.Invoke();
+                this.logger.Debug($"Loaded {sceneName}");
+                callback?.Invoke();
+            }, progress);
         }
         #endif
     }

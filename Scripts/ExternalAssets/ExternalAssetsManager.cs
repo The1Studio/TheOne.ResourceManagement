@@ -3,6 +3,7 @@ namespace UniT.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine;
@@ -22,7 +23,7 @@ namespace UniT.ResourceManagement
 
         private readonly ILogger logger;
 
-        private readonly Dictionary<string, Texture2D> cache = new Dictionary<string, Texture2D>();
+        private readonly Dictionary<string, object> cache = new Dictionary<string, object>();
 
         [Preserve]
         public ExternalAssetsManager(ILoggerManager loggerManager)
@@ -36,32 +37,115 @@ namespace UniT.ResourceManagement
         #region Public
 
         #if UNIT_UNITASK
-        UniTask<Texture2D> IExternalAssetsManager.DownloadTextureAsync(string url, IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask<string> IExternalAssetsManager.DownloadTextAsync(string url, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.cache.TryAddAsync(url, async () =>
+            if (!cache) return (string)await DownloadTextAsync();
+            return (string)await this.cache.GetOrAddAsync(url, DownloadTextAsync);
+
+            async UniTask<object> DownloadTextAsync()
             {
-                using var request = new UnityWebRequest(url);
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerBuffer();
+                request.downloadHandler = downloadHandler;
+                await this.DownloadAsync(request, progress, cancellationToken);
+                return downloadHandler.text;
+            }
+        }
+
+        async UniTask<byte[]> IExternalAssetsManager.DownloadBufferAsync(string url, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!cache) return (byte[])await DownloadBufferAsync();
+            return (byte[])await this.cache.GetOrAddAsync(url, DownloadBufferAsync);
+
+            async UniTask<object> DownloadBufferAsync()
+            {
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerBuffer();
+                request.downloadHandler = downloadHandler;
+                await this.DownloadAsync(request, progress, cancellationToken);
+                return downloadHandler.data;
+            }
+        }
+
+        async UniTask<Texture2D> IExternalAssetsManager.DownloadTextureAsync(string url, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!cache) return (Texture2D)await DownloadTextureAsync();
+            return (Texture2D)await this.cache.GetOrAddAsync(url, DownloadTextureAsync);
+
+            async UniTask<object> DownloadTextureAsync()
+            {
+                using var request         = new UnityWebRequest(url);
                 using var downloadHandler = new DownloadHandlerTexture();
                 request.downloadHandler = downloadHandler;
-                await request.SendWebRequest().ToUniTask(progress: progress, cancellationToken: cancellationToken);
+                await this.DownloadAsync(request, progress, cancellationToken);
                 return downloadHandler.texture;
-            }).ContinueWith(isDownloaded =>
+            }
+        }
+
+        async UniTask IExternalAssetsManager.DownloadFileAsync(string url, string savePath, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!cache || !File.Exists(savePath))
             {
-                this.logger.Debug(isDownloaded ? $"Downloaded texture from {url}" : $"Using cached texture from {url}");
-                return this.cache[url];
-            });
+                this.logger.Debug($"Saving {url} to {savePath}");
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerFile(savePath);
+                request.downloadHandler = downloadHandler;
+                await this.DownloadAsync(request, progress, cancellationToken);
+            }
+        }
+
+        private async UniTask DownloadAsync(UnityWebRequest request, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            this.logger.Debug($"Downloading {request.url}");
+            await request.SendWebRequest().ToUniTask(progress: progress, cancellationToken: cancellationToken);
+            this.logger.Debug($"Downloaded {request.url}");
         }
         #else
-        IEnumerator IExternalAssetsManager.DownloadTextureAsync(string url, Action<Texture2D> callback, IProgress<float>? progress)
+        IEnumerator IExternalAssetsManager.DownloadTextAsync(string url, Action<string> callback, bool cache, IProgress<float>? progress)
         {
-            return this.cache.TryAddAsync(
+            if (!cache) return DownloadTextAsync(callback);
+            return this.cache.GetOrAddAsync(
+                url,
+                DownloadTextAsync,
+                value => callback((string)value)
+            );
+
+            IEnumerator DownloadTextAsync(Action<string> callback)
+            {
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerBuffer();
+                request.downloadHandler = downloadHandler;
+                yield return this.DownloadAsync(request, progress);
+                callback(downloadHandler.text);
+            }
+        }
+
+        IEnumerator IExternalAssetsManager.DownloadBufferAsync(string url, Action<byte[]> callback, bool cache, IProgress<float>? progress)
+        {
+            if (!cache) return DownloadBufferAsync(callback);
+            return this.cache.GetOrAddAsync(
+                url,
+                DownloadBufferAsync,
+                value => callback((byte[])value)
+            );
+
+            IEnumerator DownloadBufferAsync(Action<byte[]> callback)
+            {
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerBuffer();
+                request.downloadHandler = downloadHandler;
+                yield return this.DownloadAsync(request, progress);
+                callback(downloadHandler.data);
+            }
+        }
+
+        IEnumerator IExternalAssetsManager.DownloadTextureAsync(string url, Action<Texture2D> callback, bool cache, IProgress<float>? progress)
+        {
+            if (!cache) return DownloadTextureAsync(callback);
+            return this.cache.GetOrAddAsync(
                 url,
                 DownloadTextureAsync,
-                isDownloaded =>
-                {
-                    this.logger.Debug(isDownloaded ? $"Downloaded texture from {url}" : $"Using cached texture from {url}");
-                    callback(this.cache[url]);
-                }
+                value => callback((Texture2D)value)
             );
 
             IEnumerator DownloadTextureAsync(Action<Texture2D> callback)
@@ -69,48 +153,47 @@ namespace UniT.ResourceManagement
                 using var request         = new UnityWebRequest(url);
                 using var downloadHandler = new DownloadHandlerTexture();
                 request.downloadHandler = downloadHandler;
-                var operation = request.SendWebRequest();
-                while (!operation.isDone)
-                {
-                    progress?.Report(operation.progress);
-                    yield return null;
-                }
+                yield return this.DownloadAsync(request, progress);
                 callback(downloadHandler.texture);
             }
         }
+
+        IEnumerator IExternalAssetsManager.DownloadFileAsync(string url, string savePath, Action? callback, bool cache, IProgress<float>? progress)
+        {
+            if (!cache || !File.Exists(savePath))
+            {
+                this.logger.Debug($"Saving {url} to {savePath}");
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerFile(savePath);
+                request.downloadHandler = downloadHandler;
+                yield return this.DownloadAsync(request, progress);
+            }
+            callback?.Invoke();
+        }
+
+        private IEnumerator DownloadAsync(UnityWebRequest request, IProgress<float>? progress)
+        {
+            this.logger.Debug($"Downloading {request.url}");
+            yield return request.SendWebRequest().ToCoroutine(progress: progress);
+            this.logger.Debug($"Downloaded {request.url}");
+        }
         #endif
 
-        void IExternalAssetsManager.Unload(string key)
+        void IExternalAssetsManager.DeleteCache(string key)
         {
             if (this.cache.Remove(key))
             {
-                this.logger.Debug($"Unloaded {key}");
+                this.logger.Debug($"Deleted {key}");
+            }
+            else if (File.Exists(key))
+            {
+                File.Delete(key);
+                this.logger.Debug($"Deleted {key}");
             }
             else
             {
-                this.logger.Warning($"Trying to unload {key} that was not loaded");
+                this.logger.Warning($"Failed to delete {key}");
             }
-        }
-
-        #endregion
-
-        #region Finalizer
-
-        private void Dispose()
-        {
-            this.cache.Clear();
-        }
-
-        void IDisposable.Dispose()
-        {
-            this.Dispose();
-            this.logger.Debug("Disposed");
-        }
-
-        ~ExternalAssetsManager()
-        {
-            this.Dispose();
-            this.logger.Debug("Finalized");
         }
 
         #endregion

@@ -98,43 +98,62 @@ namespace UniT.ResourceManagement
         #if UNIT_UNITASK
         UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadOrThrowAsync<T>(key, progress, cancellationToken);
 
-        UniTask<(bool IsSucceeded, T Asset)> IAssetsManager.TryLoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask<(bool IsSucceeded, T Asset)> IAssetsManager.TryLoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadOrThrowAsync<T>(
-                    key,
-                    progress,
-                    cancellationToken
-                )
-                .ContinueWith(asset => (true, asset))
-                .Catch(() => (false, null!));
+            try
+            {
+                return (
+                    true,
+                    await this.LoadOrThrowAsync<T>(
+                        key,
+                        progress,
+                        cancellationToken
+                    )
+                );
+            }
+            catch
+            {
+                return (false, null!);
+            }
         }
 
         UniTask<T> IAssetsManager.LoadComponentAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadComponentOrThrowAsync<T>(key, progress, cancellationToken);
 
-        UniTask<(bool IsSucceeded, T Component)> IAssetsManager.TryLoadComponentAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask<(bool IsSucceeded, T Component)> IAssetsManager.TryLoadComponentAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadComponentOrThrowAsync<T>(
-                    key,
-                    progress,
-                    cancellationToken
-                )
-                .ContinueWith(component => (true, component))
-                .Catch(() => (false, default!));
+            try
+            {
+                return (
+                    true,
+                    await this.LoadComponentOrThrowAsync<T>(
+                        key,
+                        progress,
+                        cancellationToken
+                    )
+                );
+            }
+            catch
+            {
+                return (false, default!);
+            }
         }
 
-        private UniTask<T> LoadOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
+        private async UniTask<T> LoadOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
         {
-            return this.cache.GetOrAddAsync(key, () =>
-                    this.LoadAsync<T>(key, progress, cancellationToken)
-                        .ContinueWith(asset =>
-                        {
-                            if (asset is null) throw new NullReferenceException($"{key} is null");
-                            this.logger.Debug($"Loaded {key}");
-                            return asset;
-                        })
-                )
-                .ContinueWith(asset => (T)asset)
-                .Catch((Func<Exception, T>)(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner)));
+            try
+            {
+                return (T)await this.cache.GetOrAddAsync(key, async () =>
+                {
+                    var asset = await this.LoadAsync<T>(key, progress, cancellationToken);
+                    if (asset is null) throw new NullReferenceException($"{key} is null");
+                    this.logger.Debug($"Loaded {key}");
+                    return asset;
+                });
+            }
+            catch (Exception inner)
+            {
+                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
+            }
         }
 
         private UniTask<T> LoadComponentOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)

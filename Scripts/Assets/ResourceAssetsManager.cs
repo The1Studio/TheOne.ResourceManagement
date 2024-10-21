@@ -46,11 +46,7 @@ namespace UniT.ResourceManagement
         protected override IEnumerator LoadAsync<T>(string key, Action<Object?> callback, IProgress<float>? progress)
         {
             var operation = Resources.LoadAsync<T>(this.GetScopedKey(key));
-            while (!operation.isDone)
-            {
-                progress?.Report(operation.progress);
-                yield return null;
-            }
+            yield return operation.ToCoroutine(progress: progress);
             callback(operation.asset);
         }
         #endif
