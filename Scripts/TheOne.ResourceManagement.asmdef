@@ -1,10 +1,10 @@
 {
-  "name": "UniT.ResourceManagement",
-  "rootNamespace": "UniT.ResourceManagement",
+  "name": "TheOne.ResourceManagement",
+  "rootNamespace": "TheOne.ResourceManagement",
   "references": [
-    "UniT.Extensions",
-    "UniT.Extensions.Addressables",
-    "UniT.Logging",
+    "TheOne.Extensions",
+    "TheOne.Extensions.Addressables",
+    "TheOne.Logging",
     "Unity.Addressables",
     "Unity.ResourceManager",
     "UniTask"
@@ -13,12 +13,12 @@
     {
       "name": "com.cysharp.unitask",
       "expression": "",
-      "define": "UNIT_UNITASK"
+      "define": "THEONE_UNITASK"
     },
     {
       "name": "com.unity.addressables",
       "expression": "",
-      "define": "UNIT_ADDRESSABLES"
+      "define": "THEONE_ADDRESSABLES"
     }
   ]
 }

@@ -1,17 +1,17 @@
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using UniT.Extensions;
-    using UniT.Logging;
+    using TheOne.Extensions;
+    using TheOne.Logging;
     using UnityEngine;
     using UnityEngine.Networking;
     using UnityEngine.Scripting;
-    using ILogger = UniT.Logging.ILogger;
+    using ILogger = TheOne.Logging.ILogger;
     using Object = UnityEngine.Object;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -37,7 +37,7 @@ namespace UniT.ResourceManagement
 
         #region Public
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         async UniTask<string> IExternalAssetsManager.DownloadTextAsync(string url, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             if (!cache) return (string)await DownloadTextAsync();

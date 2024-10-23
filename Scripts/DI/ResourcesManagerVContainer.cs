@@ -1,8 +1,8 @@
-#if UNIT_VCONTAINER
+#if THEONE_VCONTAINER
 #nullable enable
-namespace UniT.ResourceManagement.DI
+namespace TheOne.ResourceManagement.DI
 {
-    using UniT.Logging.DI;
+    using TheOne.Logging.DI;
     using VContainer;
 
     public static class ResourcesManagerVContainer
@@ -11,7 +11,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (builder.Exists(typeof(IAssetsManager), true)) return;
             builder.RegisterLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             builder.Register<AddressableAssetsManager>(Lifetime.Singleton).WithParameter(scope).AsImplementedInterfaces();
             #else
             builder.Register<ResourceAssetsManager>(Lifetime.Singleton).WithParameter(scope).AsImplementedInterfaces();
@@ -22,7 +22,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (builder.Exists(typeof(IScenesManager), true)) return;
             builder.RegisterLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             builder.Register<AddressableScenesManager>(Lifetime.Singleton).AsImplementedInterfaces();
             #else
             builder.Register<ResourceScenesManager>(Lifetime.Singleton).AsImplementedInterfaces();

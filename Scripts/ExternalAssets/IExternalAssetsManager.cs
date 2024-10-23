@@ -1,9 +1,9 @@
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using UnityEngine;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -12,7 +12,7 @@ namespace UniT.ResourceManagement
 
     public interface IExternalAssetsManager
     {
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         public UniTask<string> DownloadTextAsync(string url, bool cache = true, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
         public UniTask<byte[]> DownloadBufferAsync(string url, bool cache = true, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
