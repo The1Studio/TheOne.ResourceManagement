@@ -1,8 +1,8 @@
-#if UNIT_ZENJECT
+#if THEONE_ZENJECT
 #nullable enable
-namespace UniT.ResourceManagement.DI
+namespace TheOne.ResourceManagement.DI
 {
-    using UniT.Logging.DI;
+    using TheOne.Logging.DI;
     using Zenject;
 
     public static class ResourcesManagerZenject
@@ -11,7 +11,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (container.HasBinding<IAssetsManager>()) return;
             container.BindLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             container.BindInterfacesTo<AddressableAssetsManager>().AsSingle().WithArguments(scope);
             #else
             container.BindInterfacesTo<ResourceAssetsManager>().AsSingle().WithArguments(scope);
@@ -22,7 +22,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (container.HasBinding<IScenesManager>()) return;
             container.BindLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             container.BindInterfacesTo<AddressableScenesManager>().AsSingle();
             #else
             container.BindInterfacesTo<ResourceScenesManager>().AsSingle();
