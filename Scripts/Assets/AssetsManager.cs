@@ -1,13 +1,13 @@
 ﻿#nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
-    using UniT.Extensions;
-    using UniT.Logging;
-    using ILogger = UniT.Logging.ILogger;
+    using TheOne.Extensions;
+    using TheOne.Logging;
+    using ILogger = TheOne.Logging.ILogger;
     using Object = UnityEngine.Object;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -76,7 +76,7 @@ namespace UniT.ResourceManagement
 
         #region Async
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         async UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             try
