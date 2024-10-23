@@ -1,16 +1,16 @@
 ﻿#nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
-    using UniT.Logging;
+    using TheOne.Logging;
     using UnityEngine.SceneManagement;
     using UnityEngine.Scripting;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
     using System.Collections;
-    using UniT.Extensions;
+    using TheOne.Extensions;
     #endif
 
     public sealed class ResourceScenesManager : IScenesManager
@@ -34,7 +34,7 @@ namespace UniT.ResourceManagement
             this.logger.Debug($"Loaded {name}");
         }
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         UniTask IScenesManager.LoadAsync(string name, LoadSceneMode mode, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return SceneManager.LoadSceneAsync(name, mode)
