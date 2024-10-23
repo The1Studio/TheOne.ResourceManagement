@@ -1,8 +1,8 @@
 {
-  "name": "com.frostbun.unit.resourcemanagement",
-  "displayName": "UniT Resource Management",
+  "name": "com.theone.resourcemanagement",
+  "displayName": "TheOne Resource Management",
   "description": "Resource Manager for Unity",
-  "version": "1.0.15",
+  "version": "1.0.8",
   "unity": "2022.3",
   "license": "MIT",
   "author": {
@@ -11,7 +11,7 @@
     "url": "https://github.com/frostbun"
   },
   "dependencies": {
-    "com.frostbun.unit.extensions": "1.0.74",
-    "com.frostbun.unit.logging": "1.0.9"
+    "com.theone.extensions": "1.0.25",
+    "com.theone.logging": "1.0.2"
   }
 }
