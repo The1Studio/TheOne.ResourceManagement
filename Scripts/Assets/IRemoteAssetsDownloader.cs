@@ -1,9 +1,9 @@
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
-    using UniT.Extensions;
-    #if UNIT_UNITASK
+    using TheOne.Extensions;
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -12,7 +12,7 @@ namespace UniT.ResourceManagement
 
     public interface IRemoteAssetsDownloader
     {
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         public UniTask DownloadAsync(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
         public UniTask DownloadAllAsync(IProgress<float>? progress = null, CancellationToken cancellationToken = default);
