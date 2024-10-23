@@ -1,15 +1,15 @@
 ﻿#nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
-    using UniT.Extensions;
-    using UniT.Logging;
+    using TheOne.Extensions;
+    using TheOne.Logging;
     using UnityEngine;
     using UnityEngine.Scripting;
-    using ILogger = UniT.Logging.ILogger;
+    using ILogger = TheOne.Logging.ILogger;
     using Object = UnityEngine.Object;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -45,7 +45,7 @@ namespace UniT.ResourceManagement
             Resources.UnloadAsset(asset);
         }
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         protected override UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return Resources.LoadAsync<T>(this.GetScopedKey(key))

@@ -1,9 +1,9 @@
-﻿#if UNIT_DI
+﻿#if THEONE_DI
 #nullable enable
-namespace UniT.ResourceManagement.DI
+namespace TheOne.ResourceManagement.DI
 {
-    using UniT.DI;
-    using UniT.Logging.DI;
+    using TheOne.DI;
+    using TheOne.Logging.DI;
 
     public static class ResourcesManagerDI
     {
@@ -11,7 +11,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (container.Contains<IAssetsManager>()) return;
             container.AddLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             container.AddInterfaces<AddressableAssetsManager>(scope);
             #else
             container.AddInterfaces<ResourceAssetsManager>(scope);
@@ -22,7 +22,7 @@ namespace UniT.ResourceManagement.DI
         {
             if (container.Contains<IScenesManager>()) return;
             container.AddLoggerManager();
-            #if UNIT_ADDRESSABLES
+            #if THEONE_ADDRESSABLES
             container.AddInterfaces<AddressableScenesManager>();
             #else
             container.AddInterfaces<ResourceScenesManager>();

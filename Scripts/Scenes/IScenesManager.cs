@@ -1,9 +1,9 @@
 ﻿#nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using UnityEngine.SceneManagement;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -14,7 +14,7 @@ namespace UniT.ResourceManagement
     {
         public void LoadScene(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single);
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         public UniTask LoadSceneAsync(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
         #else
         public IEnumerator LoadSceneAsync(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single, Action? callback = null, IProgress<float>? progress = null);

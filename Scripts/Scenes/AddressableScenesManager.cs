@@ -1,14 +1,14 @@
-﻿#if UNIT_ADDRESSABLES
+﻿#if THEONE_ADDRESSABLES
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
-    using UniT.Extensions;
-    using UniT.Logging;
+    using TheOne.Extensions;
+    using TheOne.Logging;
     using UnityEngine.AddressableAssets;
     using UnityEngine.SceneManagement;
     using UnityEngine.Scripting;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -36,7 +36,7 @@ namespace UniT.ResourceManagement
             this.logger.Debug($"Loaded {sceneName}");
         }
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         UniTask IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return Addressables.LoadSceneAsync(sceneName, loadMode)

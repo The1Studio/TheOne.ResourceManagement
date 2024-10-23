@@ -1,17 +1,17 @@
-#if UNIT_ADDRESSABLES
+#if THEONE_ADDRESSABLES
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
-    using UniT.Extensions;
-    using UniT.Logging;
+    using TheOne.Extensions;
+    using TheOne.Logging;
     using UnityEngine.AddressableAssets;
     using UnityEngine.ResourceManagement.AsyncOperations;
     using UnityEngine.Scripting;
     using Object = UnityEngine.Object;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -67,7 +67,7 @@ namespace UniT.ResourceManagement
 
         #region Async
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         protected override UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return this.LoadInternal<T>(key).ToUniTask(progress, cancellationToken);
