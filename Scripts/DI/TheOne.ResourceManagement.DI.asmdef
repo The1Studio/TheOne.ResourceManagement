@@ -1,33 +1,33 @@
 {
-  "name": "UniT.ResourceManagement.DI",
-  "rootNamespace": "UniT.ResourceManagement.DI",
+  "name": "TheOne.ResourceManagement.DI",
+  "rootNamespace": "TheOne.ResourceManagement.DI",
   "references": [
-    "UniT.Logging.DI",
-    "UniT.ResourceManagement",
-    "UniT.DI",
+    "TheOne.Logging.DI",
+    "TheOne.ResourceManagement",
+    "TheOne.DI",
     "Zenject",
     "VContainer"
   ],
   "versionDefines": [
     {
-      "name": "com.frostbun.unit.di",
+      "name": "com.theone.di",
       "expression": "",
-      "define": "UNIT_DI"
+      "define": "THEONE_DI"
     },
     {
       "name": "com.svermeulen.extenject",
       "expression": "",
-      "define": "UNIT_ZENJECT"
+      "define": "THEONE_ZENJECT"
     },
     {
       "name": "jp.hadashikick.vcontainer",
       "expression": "",
-      "define": "UNIT_VCONTAINER"
+      "define": "THEONE_VCONTAINER"
     },
     {
       "name": "com.unity.addressables",
       "expression": "",
-      "define": "UNIT_ADDRESSABLES"
+      "define": "THEONE_ADDRESSABLES"
     }
   ]
 }
