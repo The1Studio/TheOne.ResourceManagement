@@ -1,14 +1,14 @@
 #nullable enable
-namespace UniT.ResourceManagement
+namespace TheOne.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
-    using UniT.Extensions;
+    using TheOne.Extensions;
     using UnityEngine;
     using Object = UnityEngine.Object;
-    #if UNIT_UNITASK
+    #if THEONE_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
     #else
@@ -77,7 +77,7 @@ namespace UniT.ResourceManagement
 
         #region Async
 
-        #if UNIT_UNITASK
+        #if THEONE_UNITASK
         public UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
         public UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
