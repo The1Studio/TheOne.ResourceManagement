@@ -3,10 +3,8 @@ namespace UniT.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics.CodeAnalysis;
     using UniT.Extensions;
     using UniT.Logging;
-    using UnityEngine;
     using ILogger = UniT.Logging.ILogger;
     using Object = UnityEngine.Object;
     #if UNIT_UNITASK
@@ -22,7 +20,8 @@ namespace UniT.ResourceManagement
 
         private readonly ILogger logger;
 
-        private readonly Dictionary<string, Object> cache = new Dictionary<string, Object>();
+        private readonly Dictionary<string, Object>   cacheSingle   = new Dictionary<string, Object>();
+        private readonly Dictionary<string, Object[]> cacheMultiple = new Dictionary<string, Object[]>();
 
         protected AssetsManager(ILoggerManager loggerManager)
         {
@@ -34,43 +33,13 @@ namespace UniT.ResourceManagement
 
         #region Sync
 
-        T IAssetsManager.Load<T>(string key) => this.LoadOrThrow<T>(key);
+        void IAssetsManager.Initialize() => this.Initialize();
 
-        bool IAssetsManager.TryLoad<T>(string key, [MaybeNullWhen(false)] out T asset)
+        T IAssetsManager.Load<T>(string key)
         {
             try
             {
-                asset = this.LoadOrThrow<T>(key);
-                return true;
-            }
-            catch
-            {
-                asset = null;
-                return false;
-            }
-        }
-
-        T IAssetsManager.LoadComponent<T>(string key) => this.LoadComponentOrThrow<T>(key);
-
-        bool IAssetsManager.TryLoadComponent<T>(string key, [MaybeNullWhen(false)] out T component)
-        {
-            try
-            {
-                component = this.LoadComponentOrThrow<T>(key);
-                return true;
-            }
-            catch
-            {
-                component = default;
-                return false;
-            }
-        }
-
-        private T LoadOrThrow<T>(string key) where T : Object
-        {
-            try
-            {
-                return (T)this.cache.GetOrAdd(key, () =>
+                return (T)this.cacheSingle.GetOrAdd(key, () =>
                 {
                     var asset = this.Load<T>(key);
                     if (asset is null) throw new NullReferenceException($"{key} is null");
@@ -84,70 +53,15 @@ namespace UniT.ResourceManagement
             }
         }
 
-        private T LoadComponentOrThrow<T>(string key)
-        {
-            return this.LoadOrThrow<GameObject>(key).GetComponentOrThrow<T>();
-        }
-
-        protected abstract Object? Load<T>(string key) where T : Object;
-
-        #endregion
-
-        #region Async
-
-        #if UNIT_UNITASK
-        UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadOrThrowAsync<T>(key, progress, cancellationToken);
-
-        async UniTask<(bool IsSucceeded, T Asset)> IAssetsManager.TryLoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        T[] IAssetsManager.LoadAll<T>(string key)
         {
             try
             {
-                return (
-                    true,
-                    await this.LoadOrThrowAsync<T>(
-                        key,
-                        progress,
-                        cancellationToken
-                    )
-                );
-            }
-            catch
-            {
-                return (false, null!);
-            }
-        }
-
-        UniTask<T> IAssetsManager.LoadComponentAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadComponentOrThrowAsync<T>(key, progress, cancellationToken);
-
-        async UniTask<(bool IsSucceeded, T Component)> IAssetsManager.TryLoadComponentAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
-        {
-            try
-            {
-                return (
-                    true,
-                    await this.LoadComponentOrThrowAsync<T>(
-                        key,
-                        progress,
-                        cancellationToken
-                    )
-                );
-            }
-            catch
-            {
-                return (false, default!);
-            }
-        }
-
-        private async UniTask<T> LoadOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
-        {
-            try
-            {
-                return (T)await this.cache.GetOrAddAsync(key, async () =>
+                return (T[])this.cacheMultiple.GetOrAdd(key, () =>
                 {
-                    var asset = await this.LoadAsync<T>(key, progress, cancellationToken);
-                    if (asset is null) throw new NullReferenceException($"{key} is null");
+                    var assets = this.LoadAll<T>(key);
                     this.logger.Debug($"Loaded {key}");
-                    return asset;
+                    return assets;
                 });
             }
             catch (Exception inner)
@@ -156,39 +70,65 @@ namespace UniT.ResourceManagement
             }
         }
 
-        private UniTask<T> LoadComponentOrThrowAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        protected virtual void Initialize() { }
+
+        protected abstract T? Load<T>(string key) where T : Object;
+
+        protected abstract T[] LoadAll<T>(string key) where T : Object;
+
+        #endregion
+
+        #region Async
+
+        #if UNIT_UNITASK
+        UniTask IAssetsManager.InitializeAsync(IProgress<float>? progress, CancellationToken cancellationToken) => this.InitializeAsync(progress, cancellationToken);
+
+        async UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadOrThrowAsync<GameObject>(key, progress, cancellationToken)
-                .ContinueWith(gameObject => gameObject.GetComponentOrThrow<T>());
+            try
+            {
+                return (T)await this.cacheSingle.GetOrAddAsync(key, async () =>
+                {
+                    var asset = await this.LoadAsync<T>(key, progress, cancellationToken);
+                    if (asset is null) throw new NullReferenceException($"{key} is null");
+                    this.logger.Debug($"Loaded {key}");
+                    return (Object)asset;
+                });
+            }
+            catch (Exception inner)
+            {
+                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
+            }
         }
 
-        protected abstract UniTask<Object?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
+        async UniTask<T[]> IAssetsManager.LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            try
+            {
+                return (T[])await this.cacheMultiple.GetOrAddAsync(key, async () =>
+                {
+                    var assets = await this.LoadAllAsync<T>(key, progress, cancellationToken);
+                    this.logger.Debug($"Loaded {key}");
+                    return (Object[])assets;
+                });
+            }
+            catch (Exception inner)
+            {
+                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
+            }
+        }
+
+        protected virtual UniTask InitializeAsync(IProgress<float>? progress, CancellationToken cancellationToken) => UniTask.CompletedTask;
+
+        protected abstract UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
+
+        protected abstract UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
         #else
-        IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) => this.LoadOrThrowAsync(key, callback, progress);
+        IEnumerator IAssetsManager.InitializeAsync(Action? callback, IProgress<float>? progress) => this.InitializeAsync(callback, progress);
 
-        IEnumerator IAssetsManager.TryLoadAsync<T>(string key, Action<(bool IsSucceeded, T Asset)> callback, IProgress<float>? progress)
+        IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
         {
-            return this.LoadOrThrowAsync<T>(
-                key,
-                asset => callback((true, asset)),
-                progress
-            ).Catch(() => callback((false, null!)));
-        }
-
-        IEnumerator IAssetsManager.LoadComponentAsync<T>(string key, Action<T> callback, IProgress<float>? progress) => this.LoadComponentOrThrowAsync(key, callback, progress);
-
-        IEnumerator IAssetsManager.TryLoadComponentAsync<T>(string key, Action<(bool IsSucceeded, T Component)> callback, IProgress<float>? progress)
-        {
-            return this.LoadComponentOrThrowAsync<T>(
-                key,
-                component => callback((true, component)),
-                progress
-            ).Catch(() => callback((false, default!)));
-        }
-
-        private IEnumerator LoadOrThrowAsync<T>(string key, Action<T> callback, IProgress<float>? progress) where T : Object
-        {
-            return this.cache.GetOrAddAsync(
+            return this.cacheSingle.GetOrAddAsync(
                 key,
                 callback => this.LoadAsync<T>(
                     key,
@@ -204,16 +144,33 @@ namespace UniT.ResourceManagement
             ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
         }
 
-        private IEnumerator LoadComponentOrThrowAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
+        IEnumerator IAssetsManager.LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress)
         {
-            return this.LoadOrThrowAsync<GameObject>(
+            return this.cacheMultiple.GetOrAddAsync(
                 key,
-                gameObject => callback(gameObject.GetComponentOrThrow<T>()),
-                progress
-            );
+                callback => this.LoadAllAsync<T>(
+                    key,
+                    assets =>
+                    {
+                        this.logger.Debug($"Loaded {key}");
+                        callback(assets);
+                    },
+                    progress
+                ),
+                assets => callback((T[])assets)
+            ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
         }
 
-        protected abstract IEnumerator LoadAsync<T>(string key, Action<Object?> callback, IProgress<float>? progress) where T : Object;
+        protected virtual IEnumerator InitializeAsync(Action? callback, IProgress<float>? progress)
+        {
+            progress?.Report(1);
+            callback?.Invoke();
+            yield break;
+        }
+
+        protected abstract IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : Object;
+
+        protected abstract IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress) where T : Object;
         #endif
 
         #endregion
@@ -222,20 +179,27 @@ namespace UniT.ResourceManagement
 
         void IAssetsManager.Unload(string key)
         {
-            if (!this.cache.Remove(key, out var asset))
+            if (this.cacheSingle.Remove(key, out var asset))
             {
-                this.logger.Warning($"Trying to unload {key} that was not loaded");
+                this.Unload(asset);
+                this.logger.Debug($"Unloaded {key}");
                 return;
             }
-            this.Unload(asset);
-            this.logger.Debug($"Unloaded {key}");
+            if (this.cacheMultiple.Remove(key, out var assets))
+            {
+                assets.ForEach(this.Unload);
+                this.logger.Debug($"Unloaded {key}");
+                return;
+            }
+            this.logger.Warning($"Trying to unload {key} that was not loaded");
         }
 
         protected abstract void Unload(Object asset);
 
         private void Dispose()
         {
-            this.cache.Clear((_, asset) => this.Unload(asset));
+            this.cacheSingle.Clear(this.Unload);
+            this.cacheMultiple.Clear(assets => assets.ForEach(this.Unload));
         }
 
         void IDisposable.Dispose()
