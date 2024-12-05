@@ -33,8 +33,6 @@ namespace UniT.ResourceManagement
 
         #region Sync
 
-        void IAssetsManager.Initialize() => this.Initialize();
-
         T IAssetsManager.Load<T>(string key)
         {
             try
@@ -70,8 +68,6 @@ namespace UniT.ResourceManagement
             }
         }
 
-        protected virtual void Initialize() { }
-
         protected abstract T? Load<T>(string key) where T : Object;
 
         protected abstract T[] LoadAll<T>(string key) where T : Object;
@@ -81,8 +77,6 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        UniTask IAssetsManager.InitializeAsync(IProgress<float>? progress, CancellationToken cancellationToken) => this.InitializeAsync(progress, cancellationToken);
-
         async UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             try
@@ -118,14 +112,10 @@ namespace UniT.ResourceManagement
             }
         }
 
-        protected virtual UniTask InitializeAsync(IProgress<float>? progress, CancellationToken cancellationToken) => UniTask.CompletedTask;
-
         protected abstract UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
 
         protected abstract UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
         #else
-        IEnumerator IAssetsManager.InitializeAsync(Action? callback, IProgress<float>? progress) => this.InitializeAsync(callback, progress);
-
         IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
         {
             return this.cacheSingle.GetOrAddAsync(
@@ -159,13 +149,6 @@ namespace UniT.ResourceManagement
                 ),
                 assets => callback((T[])assets)
             ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
-        }
-
-        protected virtual IEnumerator InitializeAsync(Action? callback, IProgress<float>? progress)
-        {
-            progress?.Report(1);
-            callback?.Invoke();
-            yield break;
         }
 
         protected abstract IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : Object;

@@ -18,8 +18,6 @@ namespace UniT.ResourceManagement
     {
         #region Sync
 
-        public void Initialize();
-
         public T Load<T>(string key) where T : Object;
 
         public T[] LoadAll<T>(string key) where T : Object;
@@ -73,8 +71,6 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        public UniTask InitializeAsync(IProgress<float>? progress = null, CancellationToken cancellationToken = default);
-
         public UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
         public UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
@@ -126,8 +122,6 @@ namespace UniT.ResourceManagement
         #endregion
 
         #else
-        public IEnumerator InitializeAsync(Action callback, IProgress<float>? progress = null);
-
         public IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) where T : Object;
 
         public IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress = null) where T : Object;
@@ -186,6 +180,6 @@ namespace UniT.ResourceManagement
 
         public void Unload<T>() => this.Unload(typeof(T).GetKey());
 
-        private static T[] GetAllComponents<T>(GameObject[] gameObjects) => gameObjects.Where(gameObject => gameObject.HasComponent<T>()).Select(gameObject => gameObject.GetComponent<T>()).ToArray();
+        private static T[] GetAllComponents<T>(GameObject[] gameObjects) => gameObjects.Select(gameObject => gameObject.GetComponent<T>()).OfType<T>().ToArray();
     }
 }

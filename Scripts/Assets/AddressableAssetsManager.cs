@@ -29,12 +29,6 @@ namespace UniT.ResourceManagement
 
         private string GetScopedKey(string key) => this.scope is null ? key : $"{this.scope}/{key}";
 
-        protected override void Initialize()
-        {
-            var resourceLocator = Addressables.InitializeAsync().WaitForCompletion();
-            Addressables.DownloadDependenciesAsync(resourceLocator.AllLocations.ToArray()).WaitForCompletion();
-        }
-
         protected override T? Load<T>(string key) where T : class
         {
             return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key)).WaitForCompletion();
@@ -51,35 +45,20 @@ namespace UniT.ResourceManagement
         }
 
         #if UNIT_UNITASK
-        protected override async UniTask InitializeAsync(IProgress<float>? progress, CancellationToken cancellationToken)
-        {
-            var subProgresses   = progress.CreateSubProgresses(2).ToArray();
-            var resourceLocator = await Addressables.InitializeAsync().ToUniTask(progress: subProgresses[0], cancellationToken: cancellationToken);
-            await Addressables.DownloadDependenciesAsync(resourceLocator.AllLocations.ToArray()).ToUniTask(progress: subProgresses[1], cancellationToken: cancellationToken);
-        }
-
         protected override UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : class
         {
             return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key))
-                .ToUniTask(progress: progress, cancellationToken: cancellationToken)
+                .ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true)
                 .ContinueWith(asset => (T?)asset);
         }
 
         protected override UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return Addressables.LoadAssetsAsync<T>(this.GetScopedKey(key))
-                .ToUniTask(progress: progress, cancellationToken: cancellationToken)
+                .ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true)
                 .ContinueWith(assets => assets as T[] ?? assets.ToArray());
         }
         #else
-        protected override IEnumerator InitializeAsync(Action? callback, IProgress<float>? progress)
-        {
-            var subProgresses   = progress.CreateSubProgresses(2).ToArray();
-            var resourceLocator = default(IResourceLocator)!;
-            yield return Addressables.InitializeAsync().ToCoroutine(result => resourceLocator = result, subProgresses[0]);
-            yield return Addressables.DownloadDependenciesAsync(resourceLocator.AllLocations.ToArray()).ToCoroutine(progress: subProgresses[1]);
-        }
-
         protected override IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : class
         {
             return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key)).ToCoroutine(callback, progress);
