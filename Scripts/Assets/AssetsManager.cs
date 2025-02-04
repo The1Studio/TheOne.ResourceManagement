@@ -68,9 +68,17 @@ namespace UniT.ResourceManagement
             }
         }
 
+        void IAssetsManager.Download(string key) => this.Download(key);
+
+        void IAssetsManager.DownloadAll() => this.DownloadAll();
+
         protected abstract T? Load<T>(string key) where T : Object;
 
         protected abstract T[] LoadAll<T>(string key) where T : Object;
+
+        protected virtual void Download(string key) { }
+
+        protected virtual void DownloadAll() { }
 
         #endregion
 
@@ -112,9 +120,17 @@ namespace UniT.ResourceManagement
             }
         }
 
+        UniTask IAssetsManager.DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.DownloadAsync(key, progress, cancellationToken);
+
+        UniTask IAssetsManager.DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken) => this.DownloadAllAsync(progress, cancellationToken);
+
         protected abstract UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
 
         protected abstract UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
+
+        protected virtual UniTask DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken) => UniTask.CompletedTask;
+
+        protected virtual UniTask DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken) => UniTask.CompletedTask;
         #else
         IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
         {
@@ -151,9 +167,23 @@ namespace UniT.ResourceManagement
             ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
         }
 
+        IEnumerator IAssetsManager.DownloadAsync(string key, Action? callback, IProgress<float>? progress) => this.DownloadAsync(key, callback, progress);
+
+        IEnumerator IAssetsManager.DownloadAllAsync(Action? callback, IProgress<float>? progress) => this.DownloadAllAsync(callback, progress);
+
         protected abstract IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : Object;
 
         protected abstract IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress) where T : Object;
+
+        protected virtual IEnumerator DownloadAsync(string key, Action? callback, IProgress<float>? progress)
+        {
+            yield break;
+        }
+
+        protected virtual IEnumerator DownloadAllAsync(Action? callback, IProgress<float>? progress)
+        {
+            yield break;
+        }
         #endif
 
         #endregion

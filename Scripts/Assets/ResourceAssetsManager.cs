@@ -69,7 +69,6 @@ namespace UniT.ResourceManagement
         {
             this.logger.Warning("Unity does not support loading all from resources asynchronously");
             var assets = this.LoadAll<T>(key);
-            progress?.Report(1);
             callback(assets);
             yield break;
         }

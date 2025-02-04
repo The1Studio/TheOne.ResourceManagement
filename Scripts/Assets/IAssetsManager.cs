@@ -22,6 +22,10 @@ namespace UniT.ResourceManagement
 
         public T[] LoadAll<T>(string key) where T : Object;
 
+        public void Download(string key);
+
+        public void DownloadAll();
+
         #region Default Implementation
 
         public bool TryLoad<T>(string key, [MaybeNullWhen(false)] out T asset) where T : Object
@@ -56,6 +60,8 @@ namespace UniT.ResourceManagement
 
         public T[] LoadAll<T>() where T : Object => this.LoadAll<T>(typeof(T).GetKey());
 
+        public void Download<T>() => this.Download(typeof(T).GetKey());
+
         public bool TryLoad<T>([MaybeNullWhen(false)] out T asset) where T : Object => this.TryLoad(typeof(T).GetKey(), out asset);
 
         public T LoadComponent<T>() => this.LoadComponent<T>(typeof(T).GetKey());
@@ -74,6 +80,10 @@ namespace UniT.ResourceManagement
         public UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
         public UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
+
+        public UniTask DownloadAsync(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
+
+        public UniTask DownloadAllAsync(IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
         #region Default Implementation
 
@@ -111,6 +121,8 @@ namespace UniT.ResourceManagement
 
         public UniTask<T[]> LoadAllAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object => this.LoadAllAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
+        public UniTask DownloadAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.DownloadAsync(typeof(T).GetKey(), progress, cancellationToken);
+
         public UniTask<(bool IsSucceeded, T Asset)> TryLoadAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object => this.TryLoadAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
         public UniTask<T> LoadComponentAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadComponentAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
@@ -125,6 +137,10 @@ namespace UniT.ResourceManagement
         public IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) where T : Object;
 
         public IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress = null) where T : Object;
+
+        public IEnumerator DownloadAsync(string key, Action? callback = null, IProgress<float>? progress = null);
+
+        public IEnumerator DownloadAllAsync(Action? callback = null, IProgress<float>? progress = null);
 
         #region Default Implementation
 
@@ -161,6 +177,8 @@ namespace UniT.ResourceManagement
         public IEnumerator LoadAsync<T>(Action<T> callback, IProgress<float>? progress = null) where T : Object => this.LoadAsync(typeof(T).GetKey(), callback, progress);
 
         public IEnumerator LoadAllAsync<T>(Action<T[]> callback, IProgress<float>? progress = null) where T : Object => this.LoadAllAsync(typeof(T).GetKey(), callback, progress);
+
+        public IEnumerator DownloadAsync<T>(Action? callback = null, IProgress<float>? progress = null) => this.DownloadAsync(typeof(T).GetKey(), callback, progress);
 
         public IEnumerator TryLoadAsync<T>(Action<(bool IsSucceeded, T Asset)> callback, IProgress<float>? progress = null) where T : Object => this.TryLoadAsync(typeof(T).GetKey(), callback, progress);
 
