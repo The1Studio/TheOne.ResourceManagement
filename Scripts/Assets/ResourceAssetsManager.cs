@@ -2,6 +2,7 @@
 namespace UniT.ResourceManagement
 {
     using System;
+    using System.Collections.Generic;
     using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine;
@@ -29,12 +30,12 @@ namespace UniT.ResourceManagement
 
         private string GetScopedKey(string key) => this.scope is null ? key : $"{this.scope}/{key}";
 
-        protected override T? Load<T>(string key) where T : class
+        protected override T Load<T>(string key)
         {
-            return Resources.Load<T>(this.GetScopedKey(key));
+            return Resources.Load<T>(this.GetScopedKey(key)) ?? throw new ArgumentOutOfRangeException($"{key} not found in resources");
         }
 
-        protected override T[] LoadAll<T>(string key)
+        protected override IEnumerable<T> LoadAll<T>(string key)
         {
             return Resources.LoadAll<T>(this.GetScopedKey(key));
         }
@@ -45,27 +46,27 @@ namespace UniT.ResourceManagement
         }
 
         #if UNIT_UNITASK
-        protected override UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : class
+        protected override UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return Resources.LoadAsync<T>(this.GetScopedKey(key))
                 .ToUniTask(progress: progress, cancellationToken: cancellationToken)
-                .ContinueWith(asset => (T?)asset);
+                .ContinueWith(asset => (T)asset ?? throw new ArgumentOutOfRangeException($"{key} not found in resources"));
         }
 
-        protected override UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        protected override UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             this.logger.Warning("Unity does not support loading all from resources asynchronously");
             return UniTask.FromResult(this.LoadAll<T>(key));
         }
         #else
-        protected override IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : class
+        protected override IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
         {
             var operation = Resources.LoadAsync<T>(this.GetScopedKey(key));
             yield return operation.ToCoroutine(progress: progress);
-            callback((T?)operation.asset);
+            callback((T)operation.asset ?? throw new ArgumentOutOfRangeException($"{key} not found in resources"));
         }
 
-        protected override IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress)
+        protected override IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
         {
             this.logger.Warning("Unity does not support loading all from resources asynchronously");
             var assets = this.LoadAll<T>(key);

@@ -3,6 +3,7 @@ namespace UniT.ResourceManagement
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using UniT.Extensions;
     using UniT.Logging;
     using ILogger = UniT.Logging.ILogger;
@@ -35,46 +36,31 @@ namespace UniT.ResourceManagement
 
         T IAssetsManager.Load<T>(string key)
         {
-            try
+            return (T)this.cacheSingle.GetOrAdd(key, () =>
             {
-                return (T)this.cacheSingle.GetOrAdd(key, () =>
-                {
-                    var asset = this.Load<T>(key);
-                    if (asset is null) throw new NullReferenceException($"{key} is null");
-                    this.logger.Debug($"Loaded {key}");
-                    return asset;
-                });
-            }
-            catch (Exception inner)
-            {
-                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
-            }
+                var asset = this.Load<T>(key);
+                this.logger.Debug($"Loaded {key}");
+                return asset;
+            });
         }
 
-        T[] IAssetsManager.LoadAll<T>(string key)
+        IEnumerable<T> IAssetsManager.LoadAll<T>(string key)
         {
-            try
+            return this.cacheMultiple.GetOrAdd(key, () =>
             {
-                return (T[])this.cacheMultiple.GetOrAdd(key, () =>
-                {
-                    var assets = this.LoadAll<T>(key);
-                    this.logger.Debug($"Loaded {key}");
-                    return assets;
-                });
-            }
-            catch (Exception inner)
-            {
-                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
-            }
+                var assets = this.LoadAll<T>(key);
+                this.logger.Debug($"Loaded {key}");
+                return assets.ToArray<Object>();
+            }).Cast<T>();
         }
 
         void IAssetsManager.Download(string key) => this.Download(key);
 
         void IAssetsManager.DownloadAll() => this.DownloadAll();
 
-        protected abstract T? Load<T>(string key) where T : Object;
+        protected abstract T Load<T>(string key) where T : Object;
 
-        protected abstract T[] LoadAll<T>(string key) where T : Object;
+        protected abstract IEnumerable<T> LoadAll<T>(string key) where T : Object;
 
         protected virtual void Download(string key) { }
 
@@ -87,46 +73,31 @@ namespace UniT.ResourceManagement
         #if UNIT_UNITASK
         async UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            try
+            return (T)await this.cacheSingle.GetOrAddAsync(key, async () =>
             {
-                return (T)await this.cacheSingle.GetOrAddAsync(key, async () =>
-                {
-                    var asset = await this.LoadAsync<T>(key, progress, cancellationToken);
-                    if (asset is null) throw new NullReferenceException($"{key} is null");
-                    this.logger.Debug($"Loaded {key}");
-                    return (Object)asset;
-                });
-            }
-            catch (Exception inner)
-            {
-                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
-            }
+                var asset = await this.LoadAsync<T>(key, progress, cancellationToken);
+                this.logger.Debug($"Loaded {key}");
+                return (Object)asset;
+            });
         }
 
-        async UniTask<T[]> IAssetsManager.LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask<IEnumerable<T>> IAssetsManager.LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            try
+            return (await this.cacheMultiple.GetOrAddAsync(key, async () =>
             {
-                return (T[])await this.cacheMultiple.GetOrAddAsync(key, async () =>
-                {
-                    var assets = await this.LoadAllAsync<T>(key, progress, cancellationToken);
-                    this.logger.Debug($"Loaded {key}");
-                    return (Object[])assets;
-                });
-            }
-            catch (Exception inner)
-            {
-                throw new ArgumentOutOfRangeException($"Failed to load {key}", inner);
-            }
+                var assets = await this.LoadAllAsync<T>(key, progress, cancellationToken);
+                this.logger.Debug($"Loaded {key}");
+                return assets.ToArray<Object>();
+            })).Cast<T>();
         }
 
         UniTask IAssetsManager.DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.DownloadAsync(key, progress, cancellationToken);
 
         UniTask IAssetsManager.DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken) => this.DownloadAllAsync(progress, cancellationToken);
 
-        protected abstract UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
+        protected abstract UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
 
-        protected abstract UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
+        protected abstract UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object;
 
         protected virtual UniTask DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken) => UniTask.CompletedTask;
 
@@ -140,17 +111,16 @@ namespace UniT.ResourceManagement
                     key,
                     asset =>
                     {
-                        if (asset is null) throw new NullReferenceException($"{key} is null");
                         this.logger.Debug($"Loaded {key}");
                         callback(asset);
                     },
                     progress
                 ),
                 asset => callback((T)asset)
-            ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
+            );
         }
 
-        IEnumerator IAssetsManager.LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress)
+        IEnumerator IAssetsManager.LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
         {
             return this.cacheMultiple.GetOrAddAsync(
                 key,
@@ -159,21 +129,21 @@ namespace UniT.ResourceManagement
                     assets =>
                     {
                         this.logger.Debug($"Loaded {key}");
-                        callback(assets);
+                        callback(assets.ToArray<Object>());
                     },
                     progress
                 ),
-                assets => callback((T[])assets)
-            ).Catch(inner => throw new ArgumentOutOfRangeException($"Failed to load {key}", inner));
+                assets => callback(assets.Cast<T>())
+            );
         }
 
         IEnumerator IAssetsManager.DownloadAsync(string key, Action? callback, IProgress<float>? progress) => this.DownloadAsync(key, callback, progress);
 
         IEnumerator IAssetsManager.DownloadAllAsync(Action? callback, IProgress<float>? progress) => this.DownloadAllAsync(callback, progress);
 
-        protected abstract IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : Object;
+        protected abstract IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) where T : Object;
 
-        protected abstract IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress) where T : Object;
+        protected abstract IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress) where T : Object;
 
         protected virtual IEnumerator DownloadAsync(string key, Action? callback, IProgress<float>? progress)
         {

@@ -30,25 +30,32 @@ namespace UniT.ResourceManagement
 
         #region Sync
 
-        protected override T? Load<T>(string key) where T : class
+        protected override T Load<T>(string key)
         {
-            return this.LoadInternal<T>(key).WaitForCompletion();
+            return this.LoadInternal<T>(key).WaitForResultOrThrow();
         }
 
-        protected override T[] LoadAll<T>(string key)
+        protected override IEnumerable<T> LoadAll<T>(string key)
         {
-            return this.LoadAllInternal<T>(key).WaitForCompletion().ToArray();
+            try
+            {
+                return this.LoadAllInternal<T>(key).WaitForResultOrThrow();
+            }
+            catch
+            {
+                return Enumerable.Empty<T>();
+            }
         }
 
         protected override void Download(string key)
         {
-            this.DownloadInternal(key).WaitForCompletion();
+            this.DownloadInternal(key).WaitForResultOrThrow();
         }
 
         protected override void DownloadAll()
         {
-            InitializeInternal().WaitForCompletion();
-            DownloadAllInternal().WaitForCompletion();
+            InitializeInternal().WaitForResultOrThrow();
+            DownloadAllInternal().WaitForResultOrThrow();
         }
 
         protected override void Unload(Object asset)
@@ -61,39 +68,43 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        protected override UniTask<T?> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : class
+        protected override UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadInternal<T>(key)
-                .ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true)
-                .ContinueWith(asset => (T?)asset);
+            return this.LoadInternal<T>(key).ToUniTask(progress, cancellationToken);
         }
 
-        protected override UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        protected override async UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadAllInternal<T>(key)
-                .ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true)
-                .ContinueWith(assets => assets.ToArray());
+            try
+            {
+                return await this.LoadAllInternal<T>(key).ToUniTask(progress, cancellationToken);
+            }
+            catch
+            {
+                return Enumerable.Empty<T>();
+            }
         }
 
         protected override UniTask DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.DownloadInternal(key).ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            return this.DownloadInternal(key).ToUniTask(progress, cancellationToken);
         }
 
         protected override async UniTask DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            await InitializeInternal().ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
-            await DownloadAllInternal().ToUniTask(progress: progress, cancellationToken: cancellationToken, autoReleaseWhenCanceled: true);
+            await InitializeInternal().ToUniTask(progress, cancellationToken);
+            await DownloadAllInternal().ToUniTask(progress, cancellationToken);
         }
         #else
-        protected override IEnumerator LoadAsync<T>(string key, Action<T?> callback, IProgress<float>? progress) where T : class
+        protected override IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
         {
             return this.LoadInternal<T>(key).ToCoroutine(callback, progress);
         }
 
-        protected override IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress)
+        protected override IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
         {
-            return this.LoadAllInternal<T>(key).ToCoroutine(assets => callback(assets.ToArray()), progress);
+            return this.LoadAllInternal<T>(key).ToCoroutine(callback, progress)
+                .Catch(() => callback(Enumerable.Empty<T>()));
         }
 
         protected override IEnumerator DownloadAsync(string key, Action? callback, IProgress<float>? progress)
@@ -127,7 +138,7 @@ namespace UniT.ResourceManagement
 
         private AsyncOperationHandle DownloadInternal(string key)
         {
-            return Addressables.DownloadDependenciesAsync(this.GetScopedKey(key), true);
+            return Addressables.DownloadDependenciesAsync(this.GetScopedKey(key), autoReleaseHandle: true);
         }
 
         private static AsyncOperationHandle DownloadAllInternal()

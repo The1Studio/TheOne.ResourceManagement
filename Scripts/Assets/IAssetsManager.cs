@@ -2,6 +2,7 @@
 namespace UniT.ResourceManagement
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using UniT.Extensions;
@@ -20,7 +21,7 @@ namespace UniT.ResourceManagement
 
         public T Load<T>(string key) where T : Object;
 
-        public T[] LoadAll<T>(string key) where T : Object;
+        public IEnumerable<T> LoadAll<T>(string key) where T : Object;
 
         public void Download(string key);
 
@@ -44,7 +45,7 @@ namespace UniT.ResourceManagement
 
         public T LoadComponent<T>(string key) => this.Load<GameObject>(key).GetComponentOrThrow<T>();
 
-        public T[] LoadAllComponents<T>(string key) => GetAllComponents<T>(this.LoadAll<GameObject>(key));
+        public IEnumerable<T> LoadAllComponents<T>(string key) => GetAllComponents<T>(this.LoadAll<GameObject>(key));
 
         public bool TryLoadComponent<T>(string key, [MaybeNullWhen(false)] out T component)
         {
@@ -58,7 +59,7 @@ namespace UniT.ResourceManagement
 
         public T Load<T>() where T : Object => this.Load<T>(typeof(T).GetKey());
 
-        public T[] LoadAll<T>() where T : Object => this.LoadAll<T>(typeof(T).GetKey());
+        public IEnumerable<T> LoadAll<T>() where T : Object => this.LoadAll<T>(typeof(T).GetKey());
 
         public void Download<T>() => this.Download(typeof(T).GetKey());
 
@@ -66,7 +67,7 @@ namespace UniT.ResourceManagement
 
         public T LoadComponent<T>() => this.LoadComponent<T>(typeof(T).GetKey());
 
-        public T[] LoadAllComponents<T>() => this.LoadAllComponents<T>(typeof(T).GetKey());
+        public IEnumerable<T> LoadAllComponents<T>() => this.LoadAllComponents<T>(typeof(T).GetKey());
 
         public bool TryLoadComponent<T>([MaybeNullWhen(false)] out T component) => this.TryLoadComponent(typeof(T).GetKey(), out component);
 
@@ -79,7 +80,7 @@ namespace UniT.ResourceManagement
         #if UNIT_UNITASK
         public UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
-        public UniTask<T[]> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
+        public UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
         public UniTask DownloadAsync(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
@@ -101,7 +102,7 @@ namespace UniT.ResourceManagement
 
         public UniTask<T> LoadComponentAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAsync<GameObject>(key, progress, cancellationToken).ContinueWith(gameObject => gameObject.GetComponentOrThrow<T>());
 
-        public UniTask<T[]> LoadAllComponentsAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllAsync<GameObject>(key, progress, cancellationToken).ContinueWith(GetAllComponents<T>);
+        public UniTask<IEnumerable<T>> LoadAllComponentsAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllAsync<GameObject>(key, progress, cancellationToken).ContinueWith(GetAllComponents<T>);
 
         public UniTask<(bool IsSucceeded, T Component)> TryLoadComponentAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
         {
@@ -119,7 +120,7 @@ namespace UniT.ResourceManagement
 
         public UniTask<T> LoadAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object => this.LoadAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
-        public UniTask<T[]> LoadAllAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object => this.LoadAllAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
+        public UniTask<IEnumerable<T>> LoadAllAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object => this.LoadAllAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
         public UniTask DownloadAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.DownloadAsync(typeof(T).GetKey(), progress, cancellationToken);
 
@@ -127,7 +128,7 @@ namespace UniT.ResourceManagement
 
         public UniTask<T> LoadComponentAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadComponentAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
-        public UniTask<T[]> LoadAllComponentsAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllComponentsAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
+        public UniTask<IEnumerable<T>> LoadAllComponentsAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllComponentsAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
         public UniTask<(bool IsSucceeded, T Component)> TryLoadComponentAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.TryLoadComponentAsync<T>(typeof(T).GetKey(), progress, cancellationToken);
 
@@ -136,7 +137,7 @@ namespace UniT.ResourceManagement
         #else
         public IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) where T : Object;
 
-        public IEnumerator LoadAllAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress = null) where T : Object;
+        public IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) where T : Object;
 
         public IEnumerator DownloadAsync(string key, Action? callback = null, IProgress<float>? progress = null);
 
@@ -155,7 +156,7 @@ namespace UniT.ResourceManagement
 
         public IEnumerator LoadComponentAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) => this.LoadAsync<GameObject>(key, gameObject => callback(gameObject.GetComponentOrThrow<T>()), progress);
 
-        public IEnumerator LoadAllComponentsAsync<T>(string key, Action<T[]> callback, IProgress<float>? progress = null) => this.LoadAllAsync<GameObject>(key, gameObjects => callback(GetAllComponents<T>(gameObjects)), progress);
+        public IEnumerator LoadAllComponentsAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) => this.LoadAllAsync<GameObject>(key, gameObjects => callback(GetAllComponents<T>(gameObjects)), progress);
 
         public IEnumerator TryLoadComponentAsync<T>(string key, Action<(bool IsSucceeded, T Component)> callback, IProgress<float>? progress = null)
         {
@@ -176,7 +177,7 @@ namespace UniT.ResourceManagement
 
         public IEnumerator LoadAsync<T>(Action<T> callback, IProgress<float>? progress = null) where T : Object => this.LoadAsync(typeof(T).GetKey(), callback, progress);
 
-        public IEnumerator LoadAllAsync<T>(Action<T[]> callback, IProgress<float>? progress = null) where T : Object => this.LoadAllAsync(typeof(T).GetKey(), callback, progress);
+        public IEnumerator LoadAllAsync<T>(Action<IEnumerable<T>> callback, IProgress<float>? progress = null) where T : Object => this.LoadAllAsync(typeof(T).GetKey(), callback, progress);
 
         public IEnumerator DownloadAsync<T>(Action? callback = null, IProgress<float>? progress = null) => this.DownloadAsync(typeof(T).GetKey(), callback, progress);
 
@@ -184,7 +185,7 @@ namespace UniT.ResourceManagement
 
         public IEnumerator LoadComponentAsync<T>(Action<T> callback, IProgress<float>? progress = null) => this.LoadComponentAsync(typeof(T).GetKey(), callback, progress);
 
-        public IEnumerator LoadAllComponentsAsync<T>(Action<T[]> callback, IProgress<float>? progress = null) => this.LoadAllComponentsAsync(typeof(T).GetKey(), callback, progress);
+        public IEnumerator LoadAllComponentsAsync<T>(Action<IEnumerable<T>> callback, IProgress<float>? progress = null) => this.LoadAllComponentsAsync(typeof(T).GetKey(), callback, progress);
 
         public IEnumerator TryLoadComponentAsync<T>(Action<(bool IsSucceeded, T Component)> callback, IProgress<float>? progress = null) => this.TryLoadComponentAsync(typeof(T).GetKey(), callback, progress);
 
@@ -198,6 +199,6 @@ namespace UniT.ResourceManagement
 
         public void Unload<T>() => this.Unload(typeof(T).GetKey());
 
-        private static T[] GetAllComponents<T>(GameObject[] gameObjects) => gameObjects.Select(gameObject => gameObject.GetComponent<T>()).OfType<T>().ToArray();
+        private static IEnumerable<T> GetAllComponents<T>(IEnumerable<GameObject> gameObjects) => gameObjects.Select(gameObject => gameObject.GetComponent<T>()).OfType<T>();
     }
 }
