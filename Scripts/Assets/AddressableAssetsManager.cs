@@ -92,8 +92,9 @@ namespace UniT.ResourceManagement
 
         protected override async UniTask DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            await InitializeInternal().ToUniTask(progress, cancellationToken);
-            await DownloadAllInternal().ToUniTask(progress, cancellationToken);
+            var subProgresses = progress.CreateSubProgresses(2).ToArray();
+            await InitializeInternal().ToUniTask(subProgresses[0], cancellationToken);
+            await DownloadAllInternal().ToUniTask(subProgresses[1], cancellationToken);
         }
         #else
         protected override IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
@@ -114,8 +115,9 @@ namespace UniT.ResourceManagement
 
         protected override IEnumerator DownloadAllAsync(Action? callback, IProgress<float>? progress)
         {
-            yield return InitializeInternal().ToCoroutine(progress: progress);
-            yield return DownloadAllInternal().ToCoroutine(progress: progress);
+            var subProgresses = progress.CreateSubProgresses(2).ToArray();
+            yield return InitializeInternal().ToCoroutine(progress: subProgresses[0]);
+            yield return DownloadAllInternal().ToCoroutine(progress: subProgresses[1]);
             callback?.Invoke();
         }
         #endif

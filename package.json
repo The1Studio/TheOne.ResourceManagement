@@ -11,7 +11,7 @@
     "url": "https://github.com/frostbun"
   },
   "dependencies": {
-    "com.frostbun.unit.extensions": "1.0.61",
+    "com.frostbun.unit.extensions": "1.0.66",
     "com.frostbun.unit.logging": "1.0.8"
   }
 }
