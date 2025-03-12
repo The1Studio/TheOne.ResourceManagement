@@ -145,12 +145,12 @@ namespace UniT.ResourceManagement
 
         private static AsyncOperationHandle DownloadAllInternal()
         {
-            return Addressables.DownloadDependenciesAsync(Addressables.ResourceLocators.SelectMany(locator => locator.Keys), true);
+            return Addressables.DownloadDependenciesAsync(Addressables.ResourceLocators.SelectMany(locator => locator.Keys), autoReleaseHandle: true);
         }
 
         private static AsyncOperationHandle InitializeInternal()
         {
-            return Addressables.InitializeAsync();
+            return Addressables.InitializeAsync(autoReleaseHandle: true);
         }
 
         #endregion
