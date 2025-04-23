@@ -25,7 +25,7 @@ namespace UniT.ResourceManagement
         [Preserve]
         public AddressableAssetsManager(ILoggerManager loggerManager, string? scope = null) : base(loggerManager)
         {
-            this.scope = scope.NullIfWhitespace();
+            this.scope = scope.NullIfWhiteSpace();
         }
 
         #region Sync

@@ -24,7 +24,7 @@ namespace UniT.ResourceManagement
         [Preserve]
         public ResourceAssetsManager(ILoggerManager loggerManager, string? scope = null) : base(loggerManager)
         {
-            this.scope  = scope.NullIfWhitespace();
+            this.scope  = scope.NullIfWhiteSpace();
             this.logger = loggerManager.GetLogger(this);
         }
 
