@@ -32,7 +32,7 @@ namespace UniT.ResourceManagement
 
         void IScenesManager.LoadScene(string sceneName, LoadSceneMode loadMode)
         {
-            Addressables.LoadSceneAsync(sceneName, loadMode).WaitForCompletion();
+            Addressables.LoadSceneAsync(sceneName, loadMode).WaitForResultOrThrow();
             this.logger.Debug($"Loaded {sceneName}");
         }
 
