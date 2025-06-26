@@ -82,6 +82,21 @@ namespace UniT.ResourceManagement
             }
         }
 
+        async UniTask<Sprite> IExternalAssetsManager.DownloadSpriteAsync(string url, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!cache) return (Sprite)await DownloadSpriteAsync();
+            return (Sprite)await this.cache.GetOrAddAsync(url, DownloadSpriteAsync);
+
+            async UniTask<object> DownloadSpriteAsync()
+            {
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerTexture();
+                request.downloadHandler = downloadHandler;
+                await this.DownloadAsync(request, progress, cancellationToken);
+                return downloadHandler.texture.CreateSprite();
+            }
+        }
+
         async UniTask IExternalAssetsManager.DownloadFileAsync(string url, string savePath, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             if (!cache || !File.Exists(savePath))
@@ -155,6 +170,25 @@ namespace UniT.ResourceManagement
                 request.downloadHandler = downloadHandler;
                 yield return this.DownloadAsync(request, progress);
                 callback(downloadHandler.texture);
+            }
+        }
+
+        IEnumerator IExternalAssetsManager.DownloadSpriteAsync(string url, Action<Sprite> callback, bool cache, IProgress<float>? progress)
+        {
+            if (!cache) return DownloadSpriteAsync(callback);
+            return this.cache.GetOrAddAsync(
+                url,
+                DownloadSpriteAsync,
+                value => callback((Sprite)value)
+            );
+
+            IEnumerator DownloadSpriteAsync(Action<Sprite> callback)
+            {
+                using var request         = new UnityWebRequest(url);
+                using var downloadHandler = new DownloadHandlerTexture();
+                request.downloadHandler = downloadHandler;
+                yield return this.DownloadAsync(request, progress);
+                callback(downloadHandler.texture.CreateSprite());
             }
         }
 
