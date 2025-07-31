@@ -3,6 +3,7 @@
   "rootNamespace": "UniT.ResourceManagement",
   "references": [
     "UniT.Extensions",
+    "UniT.Extensions.Addressables",
     "UniT.Logging",
     "Unity.Addressables",
     "Unity.ResourceManager",
