@@ -2,6 +2,7 @@
 namespace TheOne.ResourceManagement
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
     using TheOne.Extensions;
@@ -21,8 +22,10 @@ namespace TheOne.ResourceManagement
 
         private readonly ILogger logger;
 
-        private readonly Dictionary<string, Object>   cacheSingle   = new Dictionary<string, Object>();
-        private readonly Dictionary<string, Object[]> cacheMultiple = new Dictionary<string, Object[]>();
+        private readonly ConcurrentDictionary<string, Object>   cacheSingle   = new ConcurrentDictionary<string, Object>();
+        private readonly ConcurrentDictionary<string, Object[]> cacheMultiple = new ConcurrentDictionary<string, Object[]>();
+        private readonly object loadLock = new object();
+        private bool disposed;
 
         protected AssetsManager(ILoggerManager loggerManager)
         {
@@ -36,21 +39,48 @@ namespace TheOne.ResourceManagement
 
         T IAssetsManager.Load<T>(string key)
         {
-            return (T)this.cacheSingle.GetOrAdd(key, () =>
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
+            if (this.disposed)
+                throw new ObjectDisposedException(nameof(AssetsManager));
+            
+            return (T)this.cacheSingle.GetOrAdd(key, k =>
             {
-                var asset = this.Load<T>(key);
-                this.logger.Debug($"Loaded {key}");
-                return asset;
+                lock (this.loadLock)
+                {
+                    if (this.cacheSingle.TryGetValue(k, out var existing))
+                        return existing;
+                    
+                    var asset = this.Load<T>(k);
+                    if (asset == null)
+                        throw new InvalidOperationException($"Failed to load asset with key: {k}");
+                    
+                    this.logger.Debug($"Loaded {k}");
+                    return asset;
+                }
             });
         }
 
         IEnumerable<T> IAssetsManager.LoadAll<T>(string key)
         {
-            return this.cacheMultiple.GetOrAdd(key, () =>
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
+            if (this.disposed)
+                throw new ObjectDisposedException(nameof(AssetsManager));
+            
+            return this.cacheMultiple.GetOrAdd(key, k =>
             {
-                var assets = this.LoadAll<T>(key);
-                this.logger.Debug($"Loaded {key}");
-                return assets.ToArray<Object>();
+                lock (this.loadLock)
+                {
+                    if (this.cacheMultiple.TryGetValue(k, out var existing))
+                        return existing;
+                    
+                    var assets = this.LoadAll<T>(k);
+                    this.logger.Debug($"Loaded all {k}");
+                    return assets?.ToArray<Object>() ?? Array.Empty<Object>();
+                }
             }).Cast<T>();
         }
 
@@ -162,15 +192,20 @@ namespace TheOne.ResourceManagement
 
         void IAssetsManager.Unload(string key)
         {
-            if (this.cacheSingle.Remove(key, out var asset))
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+            
+            if (this.cacheSingle.TryRemove(key, out var asset))
             {
-                this.Unload(asset);
+                if (asset != null)
+                    this.Unload(asset);
                 this.logger.Debug($"Unloaded {key}");
                 return;
             }
-            if (this.cacheMultiple.Remove(key, out var assets))
+            if (this.cacheMultiple.TryRemove(key, out var assets))
             {
-                assets.ForEach(this.Unload);
+                if (assets != null)
+                    assets.Where(a => a != null).ForEach(this.Unload);
                 this.logger.Debug($"Unloaded {key}");
                 return;
             }
@@ -179,22 +214,41 @@ namespace TheOne.ResourceManagement
 
         protected abstract void Unload(Object asset);
 
-        private void Dispose()
+        private void Dispose(bool disposing)
         {
-            this.cacheSingle.Clear(this.Unload);
-            this.cacheMultiple.Clear(assets => assets.ForEach(this.Unload));
+            if (this.disposed)
+                return;
+            
+            if (disposing)
+            {
+                foreach (var kvp in this.cacheSingle)
+                {
+                    if (kvp.Value != null)
+                        this.Unload(kvp.Value);
+                }
+                this.cacheSingle.Clear();
+                
+                foreach (var kvp in this.cacheMultiple)
+                {
+                    if (kvp.Value != null)
+                        kvp.Value.Where(a => a != null).ForEach(this.Unload);
+                }
+                this.cacheMultiple.Clear();
+            }
+            
+            this.disposed = true;
         }
 
         void IDisposable.Dispose()
         {
-            this.Dispose();
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
             this.logger.Debug("Disposed");
         }
 
         ~AssetsManager()
         {
-            this.Dispose();
-            this.logger.Debug("Finalized");
+            this.Dispose(false);
         }
 
         #endregion

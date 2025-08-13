@@ -21,28 +21,44 @@ namespace TheOne.ResourceManagement
     public sealed class AddressableAssetsManager : AssetsManager
     {
         private readonly string? scope;
+        private readonly ILogger logger;
 
         [Preserve]
         public AddressableAssetsManager(ILoggerManager loggerManager, string? scope = null) : base(loggerManager)
         {
             this.scope = scope.NullIfWhiteSpace();
+            this.logger = loggerManager.GetLogger(this);
         }
 
         #region Sync
 
         protected override T Load<T>(string key)
         {
-            return this.LoadInternal<T>(key).WaitForResultOrThrow();
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
+            var handle = this.LoadInternal<T>(key);
+            var result = handle.WaitForResultOrThrow();
+            
+            if (result == null)
+                throw new InvalidOperationException($"Asset '{key}' loaded but was null");
+            
+            return result;
         }
 
         protected override IEnumerable<T> LoadAll<T>(string key)
         {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
             try
             {
-                return this.LoadAllInternal<T>(key).WaitForResultOrThrow();
+                var result = this.LoadAllInternal<T>(key).WaitForResultOrThrow();
+                return result ?? Enumerable.Empty<T>();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Warning($"Failed to load all assets with key '{key}': {ex.Message}");
                 return Enumerable.Empty<T>();
             }
         }
@@ -60,7 +76,17 @@ namespace TheOne.ResourceManagement
 
         protected override void Unload(Object asset)
         {
-            Addressables.Release(asset);
+            if (asset != null)
+            {
+                try
+                {
+                    Addressables.Release(asset);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.Warning($"Failed to unload asset: {ex.Message}");
+                }
+            }
         }
 
         #endregion
@@ -75,12 +101,17 @@ namespace TheOne.ResourceManagement
 
         protected override async UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
             try
             {
-                return await this.LoadAllInternal<T>(key).ToUniTask(progress, cancellationToken);
+                var result = await this.LoadAllInternal<T>(key).ToUniTask(progress, cancellationToken);
+                return result ?? Enumerable.Empty<T>();
             }
-            catch
+            catch (Exception ex)
             {
+                this.logger.Warning($"Failed to load all assets with key '{key}': {ex.Message}");
                 return Enumerable.Empty<T>();
             }
         }
@@ -130,7 +161,8 @@ namespace TheOne.ResourceManagement
 
         private AsyncOperationHandle<T> LoadInternal<T>(string key)
         {
-            return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key));
+            var scopedKey = this.GetScopedKey(key);
+            return Addressables.LoadAssetAsync<T>(scopedKey);
         }
 
         private AsyncOperationHandle<IList<T>> LoadAllInternal<T>(string key)
