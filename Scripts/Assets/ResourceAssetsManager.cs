@@ -32,17 +32,30 @@ namespace TheOne.ResourceManagement
 
         protected override T Load<T>(string key)
         {
-            return Resources.Load<T>(this.GetScopedKey(key)) ?? throw new ArgumentOutOfRangeException($"{key} not found in resources");
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
+            var scopedKey = this.GetScopedKey(key);
+            var asset = Resources.Load<T>(scopedKey);
+            
+            if (asset == null)
+                throw new InvalidOperationException($"Asset '{key}' not found in Resources at path '{scopedKey}'");
+            
+            return asset;
         }
 
         protected override IEnumerable<T> LoadAll<T>(string key)
         {
-            return Resources.LoadAll<T>(this.GetScopedKey(key));
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Asset key cannot be null or empty", nameof(key));
+            
+            return Resources.LoadAll<T>(this.GetScopedKey(key)) ?? Enumerable.Empty<T>();
         }
 
         protected override void Unload(Object asset)
         {
-            Resources.UnloadAsset(asset);
+            if (asset != null)
+                Resources.UnloadAsset(asset);
         }
 
         #if THEONE_UNITASK
@@ -50,7 +63,12 @@ namespace TheOne.ResourceManagement
         {
             return Resources.LoadAsync<T>(this.GetScopedKey(key))
                 .ToUniTask(progress: progress, cancellationToken: cancellationToken)
-                .ContinueWith(asset => (T)asset ?? throw new ArgumentOutOfRangeException($"{key} not found in resources"));
+                .ContinueWith(asset => 
+                {
+                    if (asset == null)
+                        throw new InvalidOperationException($"Asset '{key}' not found in Resources at path '{this.GetScopedKey(key)}'");
+                    return (T)asset;
+                });
         }
 
         protected override UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
@@ -63,7 +81,9 @@ namespace TheOne.ResourceManagement
         {
             var operation = Resources.LoadAsync<T>(this.GetScopedKey(key));
             yield return operation.ToCoroutine(progress: progress);
-            callback((T)operation.asset ?? throw new ArgumentOutOfRangeException($"{key} not found in resources"));
+            if (operation.asset == null)
+                throw new InvalidOperationException($"Asset '{key}' not found in Resources at path '{this.GetScopedKey(key)}'");
+            callback((T)operation.asset);
         }
 
         protected override IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
