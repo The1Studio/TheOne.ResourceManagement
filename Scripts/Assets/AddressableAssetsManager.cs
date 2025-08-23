@@ -9,6 +9,7 @@ namespace UniT.ResourceManagement
     using UniT.Logging;
     using UnityEngine.AddressableAssets;
     using UnityEngine.ResourceManagement.AsyncOperations;
+    using UnityEngine.ResourceManagement.ResourceLocations;
     using UnityEngine.Scripting;
     using Object = UnityEngine.Object;
     #if UNIT_UNITASK
@@ -18,49 +19,49 @@ namespace UniT.ResourceManagement
     using System.Collections;
     #endif
 
-    public sealed class AddressableAssetsManager : AssetsManager
+    public sealed class AddressableAssetsManager : IAssetsManager, IRemoteAssetsDownloader
     {
+        #region Constructor
+
         private readonly string? scope;
+        private readonly ILogger logger;
+
+        private readonly Dictionary<string, Object>                      cache  = new Dictionary<string, Object>();
+        private readonly Dictionary<string, IReadOnlyCollection<string>> keyMap = new Dictionary<string, IReadOnlyCollection<string>>();
 
         [Preserve]
-        public AddressableAssetsManager(ILoggerManager loggerManager, string? scope = null) : base(loggerManager)
+        public AddressableAssetsManager(ILoggerManager loggerManager, string? scope = null)
         {
-            this.scope = scope.NullIfWhiteSpace();
+            this.scope  = scope.NullIfWhiteSpace();
+            this.logger = loggerManager.GetLogger(this);
+            this.logger.Debug("Constructed");
         }
+
+        #endregion
 
         #region Sync
 
-        protected override T Load<T>(string key)
-        {
-            return this.LoadInternal<T>(key).WaitForResultOrThrow();
-        }
+        T IAssetsManager.Load<T>(string key) => this.Load<T>(key);
 
-        protected override IEnumerable<T> LoadAll<T>(string key)
+        IEnumerable<T> IAssetsManager.LoadAll<T>(string key)
         {
-            try
+            var keys = this.keyMap.GetOrAdd(key, () =>
             {
-                return this.LoadAllInternal<T>(key).WaitForResultOrThrow();
-            }
-            catch
+                var resourceLocations = this.GetAllResourceLocationsInternal<T>(key).WaitForResultOrThrow();
+                return this.GetAllKeys(resourceLocations);
+            });
+            this.logger.Debug($"Found {keys.Count} keys for {key}");
+            return keys.Select(this.Load<T>).ToArray();
+        }
+
+        private T Load<T>(string key) where T : Object
+        {
+            return (T)this.cache.GetOrAdd(key, () =>
             {
-                return Enumerable.Empty<T>();
-            }
-        }
-
-        protected override void Download(string key)
-        {
-            this.DownloadInternal(key).WaitForResultOrThrow();
-        }
-
-        protected override void DownloadAll()
-        {
-            InitializeInternal().WaitForResultOrThrow();
-            DownloadAllInternal().WaitForResultOrThrow();
-        }
-
-        protected override void Unload(Object asset)
-        {
-            Addressables.Release(asset);
+                var asset = this.LoadInternal<T>(key).WaitForResultOrThrow();
+                this.logger.Debug($"Loaded {key}");
+                return asset;
+            });
         }
 
         #endregion
@@ -68,74 +69,144 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        protected override UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadAsync<T>(key, progress, cancellationToken);
+
+        async UniTask<IEnumerable<T>> IAssetsManager.LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return this.LoadInternal<T>(key).ToUniTask(progress, cancellationToken);
+            var keys = await this.keyMap.GetOrAddAsync(key, async () =>
+            {
+                var resourceLocations = await this.GetAllResourceLocationsInternal<T>(key).ToUniTask(cancellationToken: cancellationToken);
+                return this.GetAllKeys(resourceLocations);
+            });
+            this.logger.Debug($"Found {keys.Count} keys for {key}");
+            return await keys.SelectAsync(this.LoadAsync<T>, progress, cancellationToken).ToArrayAsync();
         }
 
-        protected override async UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
-        {
-            try
-            {
-                return await this.LoadAllInternal<T>(key).ToUniTask(progress, cancellationToken);
-            }
-            catch
-            {
-                return Enumerable.Empty<T>();
-            }
-        }
-
-        protected override UniTask DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        UniTask IRemoteAssetsDownloader.DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return this.DownloadInternal(key).ToUniTask(progress, cancellationToken);
         }
 
-        protected override async UniTask DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask IRemoteAssetsDownloader.DownloadAllAsync(IProgress<float>? progress, CancellationToken cancellationToken)
         {
             var subProgresses = progress.CreateSubProgresses(2).ToArray();
             await InitializeInternal().ToUniTask(subProgresses[0], cancellationToken);
             await DownloadAllInternal().ToUniTask(subProgresses[1], cancellationToken);
         }
+
+        private async UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
+        {
+            return (T)await this.cache.GetOrAddAsync(key, async () =>
+            {
+                var asset = await this.LoadInternal<T>(key).ToUniTask(progress, cancellationToken);
+                this.logger.Debug($"Loaded {key}");
+                return (Object)asset;
+            });
+        }
         #else
-        protected override IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress)
+        IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) => this.LoadAsync(key, callback, progress);
+
+        IEnumerator IAssetsManager.LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
         {
-            return this.LoadInternal<T>(key).ToCoroutine(callback, progress);
+            var keys = default(IReadOnlyCollection<string>)!;
+            yield return this.keyMap.GetOrAddAsync(
+                key,
+                callback => this.GetAllResourceLocationsInternal<T>(key).ToCoroutine(resourceLocations => callback(this.GetAllKeys(resourceLocations))),
+                result => keys = result
+            );
+            this.logger.Debug($"Found {keys.Count} keys for {key}");
+            yield return keys.SelectAsync(this.LoadAsync, result => callback(result.ToArray()), progress);
         }
 
-        protected override IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
-        {
-            return this.LoadAllInternal<T>(key).ToCoroutine(callback, progress)
-                .Catch(() => callback(Enumerable.Empty<T>()));
-        }
-
-        protected override IEnumerator DownloadAsync(string key, Action? callback, IProgress<float>? progress)
+        IEnumerator IRemoteAssetsDownloader.DownloadAsync(string key, Action? callback, IProgress<float>? progress)
         {
             return this.DownloadInternal(key).ToCoroutine(callback, progress);
         }
 
-        protected override IEnumerator DownloadAllAsync(Action? callback, IProgress<float>? progress)
+        IEnumerator IRemoteAssetsDownloader.DownloadAllAsync(Action? callback, IProgress<float>? progress)
         {
             var subProgresses = progress.CreateSubProgresses(2).ToArray();
             yield return InitializeInternal().ToCoroutine(progress: subProgresses[0]);
             yield return DownloadAllInternal().ToCoroutine(progress: subProgresses[1]);
             callback?.Invoke();
         }
+
+        private IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) where T : Object
+        {
+            return this.cache.GetOrAddAsync(
+                key,
+                callback => this.LoadInternal<T>(key).ToCoroutine(
+                    asset =>
+                    {
+                        this.logger.Debug($"Loaded {key}");
+                        callback(asset);
+                    },
+                    progress
+                ),
+                asset => callback((T)asset)
+            );
+        }
         #endif
+
+        #endregion
+
+        #region Finalizer
+
+        void IAssetsManager.Unload(string key)
+        {
+            if (!this.cache.Remove(key, out var asset))
+            {
+                this.logger.Warning($"Trying to unload {key} that was not loaded");
+                return;
+            }
+            Addressables.Release(asset);
+            this.logger.Debug($"Unloaded {key}");
+        }
+
+        void IAssetsManager.UnloadAll(string key)
+        {
+            if (!this.keyMap.TryGetValue(key, out var keys))
+            {
+                this.logger.Warning($"Trying to unload all {key} that was not loaded");
+                return;
+            }
+            keys.ForEach(((IAssetsManager)this).Unload);
+        }
+
+        private void Dispose()
+        {
+            this.cache.Clear(Addressables.Release);
+            this.keyMap.Clear();
+        }
+
+        void IDisposable.Dispose()
+        {
+            this.Dispose();
+            this.logger.Debug("Disposed");
+        }
+
+        ~AddressableAssetsManager()
+        {
+            this.Dispose();
+            this.logger.Debug("Finalized");
+        }
 
         #endregion
 
         #region Internal
 
-        private string GetScopedKey(string key) => this.scope is null ? key : $"{this.scope}/{key}";
+        private string KeyPrefix => this.scope is null ? string.Empty : $"{this.scope}/";
+
+        private string GetScopedKey(string key) => $"{this.KeyPrefix}{key}";
 
         private AsyncOperationHandle<T> LoadInternal<T>(string key)
         {
             return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key));
         }
 
-        private AsyncOperationHandle<IList<T>> LoadAllInternal<T>(string key)
+        private AsyncOperationHandle<IList<IResourceLocation>> GetAllResourceLocationsInternal<T>(string key)
         {
-            return Addressables.LoadAssetsAsync<T>(this.GetScopedKey(key));
+            return Addressables.LoadResourceLocationsAsync(this.GetScopedKey(key), typeof(T));
         }
 
         private AsyncOperationHandle DownloadInternal(string key)
@@ -151,6 +222,11 @@ namespace UniT.ResourceManagement
         private static AsyncOperationHandle InitializeInternal()
         {
             return Addressables.InitializeAsync(autoReleaseHandle: true);
+        }
+
+        private IReadOnlyCollection<string> GetAllKeys(IList<IResourceLocation> resourceLocations)
+        {
+            return resourceLocations.Select(resourceLocation => resourceLocation.PrimaryKey.TrimStart(this.KeyPrefix)).ToArray();
         }
 
         #endregion
