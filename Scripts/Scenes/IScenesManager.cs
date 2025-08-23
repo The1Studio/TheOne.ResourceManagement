@@ -12,12 +12,16 @@ namespace UniT.ResourceManagement
 
     public interface IScenesManager
     {
-        public void LoadScene(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single);
+        public void Load(string name, LoadSceneMode mode = LoadSceneMode.Single);
 
         #if UNIT_UNITASK
-        public UniTask LoadSceneAsync(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
+        public UniTask LoadAsync(string name, LoadSceneMode mode = LoadSceneMode.Single, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
+
+        public UniTask UnloadAsync(string name, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
         #else
-        public IEnumerator LoadSceneAsync(string sceneName, LoadSceneMode loadMode = LoadSceneMode.Single, Action? callback = null, IProgress<float>? progress = null);
+        public IEnumerator LoadAsync(string name, LoadSceneMode mode = LoadSceneMode.Single, Action? callback = null, IProgress<float>? progress = null);
+
+        public IEnumerator UnloadAsync(string name, Action? callback = null, IProgress<float>? progress = null);
         #endif
     }
 }

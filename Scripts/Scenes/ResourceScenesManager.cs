@@ -2,7 +2,6 @@
 namespace UniT.ResourceManagement
 {
     using System;
-    using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine.SceneManagement;
     using UnityEngine.Scripting;
@@ -11,6 +10,7 @@ namespace UniT.ResourceManagement
     using Cysharp.Threading.Tasks;
     #else
     using System.Collections;
+    using UniT.Extensions;
     #endif
 
     public sealed class ResourceScenesManager : IScenesManager
@@ -28,25 +28,41 @@ namespace UniT.ResourceManagement
 
         #endregion
 
-        void IScenesManager.LoadScene(string sceneName, LoadSceneMode loadMode)
+        void IScenesManager.Load(string name, LoadSceneMode mode)
         {
-            SceneManager.LoadScene(sceneName, loadMode);
-            this.logger.Debug($"Loaded {sceneName}");
+            SceneManager.LoadScene(name, mode);
+            this.logger.Debug($"Loaded {name}");
         }
 
         #if UNIT_UNITASK
-        UniTask IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, IProgress<float>? progress, CancellationToken cancellationToken)
+        UniTask IScenesManager.LoadAsync(string name, LoadSceneMode mode, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return SceneManager.LoadSceneAsync(sceneName, loadMode)
+            return SceneManager.LoadSceneAsync(name, mode)
                 .ToUniTask(progress: progress, cancellationToken: cancellationToken)
-                .ContinueWith(() => this.logger.Debug($"Loaded {sceneName}"));
+                .ContinueWith(() => this.logger.Debug($"Loaded {name}"));
+        }
+
+        UniTask IScenesManager.UnloadAsync(string name, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            return SceneManager.UnloadSceneAsync(name)
+                .ToUniTask(progress: progress, cancellationToken: cancellationToken)
+                .ContinueWith(() => this.logger.Debug($"Unloaded {name}"));
         }
         #else
-        IEnumerator IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, Action? callback, IProgress<float>? progress)
+        IEnumerator IScenesManager.LoadAsync(string name, LoadSceneMode mode, Action? callback, IProgress<float>? progress)
         {
-            return SceneManager.LoadSceneAsync(sceneName, loadMode)!.ToCoroutine(() =>
+            return SceneManager.LoadSceneAsync(name, mode)!.ToCoroutine(() =>
             {
-                this.logger.Debug($"Loaded {sceneName}");
+                this.logger.Debug($"Loaded {name}");
+                callback?.Invoke();
+            }, progress: progress);
+        }
+
+        IEnumerator IScenesManager.UnloadAsync(string name, Action? callback, IProgress<float>? progress)
+        {
+            return SceneManager.UnloadSceneAsync(name)!.ToCoroutine(() =>
+            {
+                this.logger.Debug($"Unloaded {name}");
                 callback?.Invoke();
             }, progress: progress);
         }

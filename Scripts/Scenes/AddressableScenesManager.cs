@@ -3,9 +3,11 @@
 namespace UniT.ResourceManagement
 {
     using System;
+    using System.Collections.Generic;
     using UniT.Extensions;
     using UniT.Logging;
     using UnityEngine.AddressableAssets;
+    using UnityEngine.ResourceManagement.ResourceProviders;
     using UnityEngine.SceneManagement;
     using UnityEngine.Scripting;
     #if UNIT_UNITASK
@@ -21,6 +23,8 @@ namespace UniT.ResourceManagement
 
         private readonly ILogger logger;
 
+        private readonly Dictionary<string, SceneInstance> loadedScenes = new Dictionary<string, SceneInstance>();
+
         [Preserve]
         public AddressableScenesManager(ILoggerManager loggerManager)
         {
@@ -30,29 +34,66 @@ namespace UniT.ResourceManagement
 
         #endregion
 
-        void IScenesManager.LoadScene(string sceneName, LoadSceneMode loadMode)
+        void IScenesManager.Load(string name, LoadSceneMode mode)
         {
-            Addressables.LoadSceneAsync(sceneName, loadMode).WaitForResultOrThrow();
-            this.logger.Debug($"Loaded {sceneName}");
+            var instance = Addressables.LoadSceneAsync(name, mode).WaitForResultOrThrow();
+            this.OnSceneLoaded(name, mode, instance);
         }
 
         #if UNIT_UNITASK
-        UniTask IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, IProgress<float>? progress, CancellationToken cancellationToken)
+        UniTask IScenesManager.LoadAsync(string name, LoadSceneMode mode, IProgress<float>? progress, CancellationToken cancellationToken)
         {
-            return Addressables.LoadSceneAsync(sceneName, loadMode)
+            return Addressables.LoadSceneAsync(name, mode)
                 .ToUniTask(progress: progress, cancellationToken: cancellationToken)
-                .ContinueWith(_ => this.logger.Debug($"Loaded {sceneName}"));
+                .ContinueWith(scene => this.OnSceneLoaded(name, mode, scene));
+        }
+
+        UniTask IScenesManager.UnloadAsync(string name, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!this.loadedScenes.Remove(name, out var scene))
+            {
+                this.logger.Warning($"{name} not loaded");
+                return UniTask.CompletedTask;
+            }
+            return Addressables.UnloadSceneAsync(scene)
+                .ToUniTask(progress: progress, cancellationToken: cancellationToken)
+                .ContinueWith(_ => this.logger.Debug($"Unloaded {name}"));
         }
         #else
-        IEnumerator IScenesManager.LoadSceneAsync(string sceneName, LoadSceneMode loadMode, Action? callback, IProgress<float>? progress)
+        IEnumerator IScenesManager.LoadAsync(string name, LoadSceneMode mode, Action? callback, IProgress<float>? progress)
         {
-            return Addressables.LoadSceneAsync(sceneName, loadMode).ToCoroutine(_ =>
+            return Addressables.LoadSceneAsync(name, mode).ToCoroutine(scene =>
             {
-                this.logger.Debug($"Loaded {sceneName}");
+                this.OnSceneLoaded(name, mode, scene);
+                callback?.Invoke();
+            }, progress);
+        }
+
+        IEnumerator IScenesManager.UnloadAsync(string name, Action? callback, IProgress<float>? progress)
+        {
+            if (!this.loadedScenes.Remove(name, out var scene))
+            {
+                this.logger.Warning($"{name} not loaded");
+                callback?.Invoke();
+                yield break;
+            }
+            yield return Addressables.UnloadSceneAsync(scene).ToCoroutine(_ =>
+            {
+                this.logger.Debug($"Unloaded {name}");
                 callback?.Invoke();
             }, progress);
         }
         #endif
+
+        private void OnSceneLoaded(string name, LoadSceneMode mode, SceneInstance scene)
+        {
+            if (mode is LoadSceneMode.Single)
+            {
+                this.loadedScenes.Clear();
+            }
+            this.loadedScenes.Add(name, scene);
+            this.logger.Debug($"Loaded {name}");
+        }
     }
 }
 #endif
