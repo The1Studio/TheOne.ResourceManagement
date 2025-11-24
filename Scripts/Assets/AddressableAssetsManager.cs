@@ -115,7 +115,7 @@ namespace UniT.ResourceManagement
                 result => keys = result
             );
             this.logger.Debug($"Found {keys.Count} keys for {key}");
-            yield return keys.SelectAsync(this.LoadAsync, result => callback(result.ToArray()), progress);
+            yield return keys.SelectAsync<string, T>(this.LoadAsync, result => callback(result.ToArray()), progress);
         }
 
         IEnumerator IRemoteAssetsDownloader.DownloadAsync(string key, Action? callback, IProgress<float>? progress)
