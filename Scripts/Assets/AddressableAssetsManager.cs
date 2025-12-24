@@ -23,17 +23,17 @@ namespace UniT.ResourceManagement
     {
         #region Constructor
 
-        private readonly string? scope;
+        private readonly string  keyPrefix;
         private readonly ILogger logger;
 
-        private readonly Dictionary<string, Object>                      cache  = new Dictionary<string, Object>();
-        private readonly Dictionary<string, IReadOnlyCollection<string>> keyMap = new Dictionary<string, IReadOnlyCollection<string>>();
+        private readonly Dictionary<object, Object>                      cache  = new Dictionary<object, Object>();
+        private readonly Dictionary<object, IReadOnlyCollection<string>> keyMap = new Dictionary<object, IReadOnlyCollection<string>>();
 
         [Preserve]
         public AddressableAssetsManager(ILoggerManager loggerManager, string? scope = null)
         {
-            this.scope  = scope.NullIfWhiteSpace();
-            this.logger = loggerManager.GetLogger(this);
+            this.keyPrefix = scope.IsNullOrWhiteSpace() ? string.Empty : $"{scope}/";
+            this.logger    = loggerManager.GetLogger(this);
             this.logger.Debug("Constructed");
         }
 
@@ -41,9 +41,9 @@ namespace UniT.ResourceManagement
 
         #region Sync
 
-        T IAssetsManager.Load<T>(string key) => this.Load<T>(key);
+        T IAssetsManager.Load<T>(object key) => this.Load<T>(key);
 
-        IEnumerable<T> IAssetsManager.LoadAll<T>(string key)
+        IEnumerable<T> IAssetsManager.LoadAll<T>(object key)
         {
             var keys = this.keyMap.GetOrAdd(key, () =>
             {
@@ -54,7 +54,7 @@ namespace UniT.ResourceManagement
             return keys.Select(this.Load<T>).ToArray();
         }
 
-        private T Load<T>(string key) where T : Object
+        private T Load<T>(object key) where T : Object
         {
             return (T)this.cache.GetOrAdd(key, () =>
             {
@@ -69,9 +69,9 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        UniTask<T> IAssetsManager.LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadAsync<T>(key, progress, cancellationToken);
+        UniTask<T> IAssetsManager.LoadAsync<T>(object key, IProgress<float>? progress, CancellationToken cancellationToken) => this.LoadAsync<T>(key, progress, cancellationToken);
 
-        async UniTask<IEnumerable<T>> IAssetsManager.LoadAllAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        async UniTask<IEnumerable<T>> IAssetsManager.LoadAllAsync<T>(object key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             var keys = await this.keyMap.GetOrAddAsync(key, async () =>
             {
@@ -82,7 +82,7 @@ namespace UniT.ResourceManagement
             return await keys.SelectAsync(this.LoadAsync<T>, progress, cancellationToken).ToArrayAsync();
         }
 
-        UniTask IRemoteAssetsDownloader.DownloadAsync(string key, IProgress<float>? progress, CancellationToken cancellationToken)
+        UniTask IRemoteAssetsDownloader.DownloadAsync(object key, IProgress<float>? progress, CancellationToken cancellationToken)
         {
             return this.DownloadInternal(key).ToUniTask(progress, cancellationToken);
         }
@@ -94,7 +94,7 @@ namespace UniT.ResourceManagement
             await DownloadAllInternal().ToUniTask(subProgresses[1], cancellationToken);
         }
 
-        private async UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
+        private async UniTask<T> LoadAsync<T>(object key, IProgress<float>? progress, CancellationToken cancellationToken) where T : Object
         {
             return (T)await this.cache.GetOrAddAsync(key, async () =>
             {
@@ -104,9 +104,9 @@ namespace UniT.ResourceManagement
             });
         }
         #else
-        IEnumerator IAssetsManager.LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) => this.LoadAsync(key, callback, progress);
+        IEnumerator IAssetsManager.LoadAsync<T>(object key, Action<T> callback, IProgress<float>? progress) => this.LoadAsync(key, callback, progress);
 
-        IEnumerator IAssetsManager.LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
+        IEnumerator IAssetsManager.LoadAllAsync<T>(object key, Action<IEnumerable<T>> callback, IProgress<float>? progress)
         {
             var keys = default(IReadOnlyCollection<string>)!;
             yield return this.keyMap.GetOrAddAsync(
@@ -118,7 +118,7 @@ namespace UniT.ResourceManagement
             yield return keys.SelectAsync<string, T>(this.LoadAsync, result => callback(result.ToArray()), progress);
         }
 
-        IEnumerator IRemoteAssetsDownloader.DownloadAsync(string key, Action? callback, IProgress<float>? progress)
+        IEnumerator IRemoteAssetsDownloader.DownloadAsync(object key, Action? callback, IProgress<float>? progress)
         {
             return this.DownloadInternal(key).ToCoroutine(callback, progress);
         }
@@ -131,7 +131,7 @@ namespace UniT.ResourceManagement
             callback?.Invoke();
         }
 
-        private IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress) where T : Object
+        private IEnumerator LoadAsync<T>(object key, Action<T> callback, IProgress<float>? progress) where T : Object
         {
             return this.cache.GetOrAddAsync(
                 key,
@@ -152,7 +152,7 @@ namespace UniT.ResourceManagement
 
         #region Finalizer
 
-        void IAssetsManager.Unload(string key)
+        void IAssetsManager.Unload(object key)
         {
             if (!this.cache.Remove(key, out var asset))
             {
@@ -163,7 +163,7 @@ namespace UniT.ResourceManagement
             this.logger.Debug($"Unloaded {key}");
         }
 
-        void IAssetsManager.UnloadAll(string key)
+        void IAssetsManager.UnloadAll(object key)
         {
             if (!this.keyMap.TryGetValue(key, out var keys))
             {
@@ -195,21 +195,19 @@ namespace UniT.ResourceManagement
 
         #region Internal
 
-        private string KeyPrefix => this.scope is null ? string.Empty : $"{this.scope}/";
+        private object GetScopedKey(object key) => key is string ? $"{this.keyPrefix}{key}" : key;
 
-        private string GetScopedKey(string key) => $"{this.KeyPrefix}{key}";
-
-        private AsyncOperationHandle<T> LoadInternal<T>(string key)
+        private AsyncOperationHandle<T> LoadInternal<T>(object key)
         {
             return Addressables.LoadAssetAsync<T>(this.GetScopedKey(key));
         }
 
-        private AsyncOperationHandle<IList<IResourceLocation>> GetAllResourceLocationsInternal<T>(string key)
+        private AsyncOperationHandle<IList<IResourceLocation>> GetAllResourceLocationsInternal<T>(object key)
         {
             return Addressables.LoadResourceLocationsAsync(this.GetScopedKey(key), typeof(T));
         }
 
-        private AsyncOperationHandle DownloadInternal(string key)
+        private AsyncOperationHandle DownloadInternal(object key)
         {
             return Addressables.DownloadDependenciesAsync(this.GetScopedKey(key), autoReleaseHandle: true);
         }
@@ -226,7 +224,7 @@ namespace UniT.ResourceManagement
 
         private IReadOnlyCollection<string> GetAllKeys(IList<IResourceLocation> resourceLocations)
         {
-            return resourceLocations.Select(resourceLocation => resourceLocation.PrimaryKey.TrimStart(this.KeyPrefix)).ToArray();
+            return resourceLocations.Select(resourceLocation => resourceLocation.PrimaryKey.TrimStart(this.keyPrefix)).ToArray();
         }
 
         #endregion

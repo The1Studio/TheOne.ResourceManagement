@@ -13,13 +13,13 @@ namespace UniT.ResourceManagement
     public interface IRemoteAssetsDownloader
     {
         #if UNIT_UNITASK
-        public UniTask DownloadAsync(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
+        public UniTask DownloadAsync(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
         public UniTask DownloadAllAsync(IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
         public UniTask DownloadAsync<T>(IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.DownloadAsync(typeof(T).GetKey(), progress, cancellationToken);
         #else
-        public IEnumerator DownloadAsync(string key, Action? callback = null, IProgress<float>? progress = null);
+        public IEnumerator DownloadAsync(object key, Action? callback = null, IProgress<float>? progress = null);
 
         public IEnumerator DownloadAllAsync(Action? callback = null, IProgress<float>? progress = null);
 

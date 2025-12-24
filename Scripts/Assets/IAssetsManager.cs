@@ -19,13 +19,13 @@ namespace UniT.ResourceManagement
     {
         #region Sync
 
-        public T Load<T>(string key) where T : Object;
+        public T Load<T>(object key) where T : Object;
 
-        public IEnumerable<T> LoadAll<T>(string key) where T : Object;
+        public IEnumerable<T> LoadAll<T>(object key) where T : Object;
 
         #region Default Implementation
 
-        public bool TryLoad<T>(string key, [MaybeNullWhen(false)] out T asset) where T : Object
+        public bool TryLoad<T>(object key, [MaybeNullWhen(false)] out T asset) where T : Object
         {
             try
             {
@@ -39,11 +39,11 @@ namespace UniT.ResourceManagement
             }
         }
 
-        public T LoadComponent<T>(string key) => this.Load<GameObject>(key).GetComponentOrThrow<T>();
+        public T LoadComponent<T>(object key) => this.Load<GameObject>(key).GetComponentOrThrow<T>();
 
-        public IEnumerable<T> LoadAllComponents<T>(string key) => GetAllComponents<T>(this.LoadAll<GameObject>(key));
+        public IEnumerable<T> LoadAllComponents<T>(object key) => GetAllComponents<T>(this.LoadAll<GameObject>(key));
 
-        public bool TryLoadComponent<T>(string key, [MaybeNullWhen(false)] out T component)
+        public bool TryLoadComponent<T>(object key, [MaybeNullWhen(false)] out T component)
         {
             component = default;
             return this.TryLoad<GameObject>(key, out var gameObject) && gameObject.TryGetComponent(out component);
@@ -72,13 +72,13 @@ namespace UniT.ResourceManagement
         #region Async
 
         #if UNIT_UNITASK
-        public UniTask<T> LoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
+        public UniTask<T> LoadAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
-        public UniTask<IEnumerable<T>> LoadAllAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
+        public UniTask<IEnumerable<T>> LoadAllAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object;
 
         #region Default Implementation
 
-        public async UniTask<(bool IsSucceeded, T Asset)> TryLoadAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object
+        public async UniTask<(bool IsSucceeded, T Asset)> TryLoadAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) where T : Object
         {
             try
             {
@@ -90,11 +90,11 @@ namespace UniT.ResourceManagement
             }
         }
 
-        public UniTask<T> LoadComponentAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAsync<GameObject>(key, progress, cancellationToken).ContinueWith(gameObject => gameObject.GetComponentOrThrow<T>());
+        public UniTask<T> LoadComponentAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAsync<GameObject>(key, progress, cancellationToken).ContinueWith(gameObject => gameObject.GetComponentOrThrow<T>());
 
-        public UniTask<IEnumerable<T>> LoadAllComponentsAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllAsync<GameObject>(key, progress, cancellationToken).ContinueWith(GetAllComponents<T>);
+        public UniTask<IEnumerable<T>> LoadAllComponentsAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default) => this.LoadAllAsync<GameObject>(key, progress, cancellationToken).ContinueWith(GetAllComponents<T>);
 
-        public UniTask<(bool IsSucceeded, T Component)> TryLoadComponentAsync<T>(string key, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
+        public UniTask<(bool IsSucceeded, T Component)> TryLoadComponentAsync<T>(object key, IProgress<float>? progress = null, CancellationToken cancellationToken = default)
         {
             return this.TryLoadAsync<GameObject>(key, progress, cancellationToken)
                 .ContinueWith((isSucceeded, asset) =>
@@ -123,13 +123,13 @@ namespace UniT.ResourceManagement
         #endregion
 
         #else
-        public IEnumerator LoadAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) where T : Object;
+        public IEnumerator LoadAsync<T>(object key, Action<T> callback, IProgress<float>? progress = null) where T : Object;
 
-        public IEnumerator LoadAllAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) where T : Object;
+        public IEnumerator LoadAllAsync<T>(object key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) where T : Object;
 
         #region Default Implementation
 
-        public IEnumerator TryLoadAsync<T>(string key, Action<(bool IsSucceeded, T Asset)> callback, IProgress<float>? progress = null) where T : Object
+        public IEnumerator TryLoadAsync<T>(object key, Action<(bool IsSucceeded, T Asset)> callback, IProgress<float>? progress = null) where T : Object
         {
             return this.LoadAsync<T>(
                 key,
@@ -138,11 +138,11 @@ namespace UniT.ResourceManagement
             ).Catch(() => callback((false, null!)));
         }
 
-        public IEnumerator LoadComponentAsync<T>(string key, Action<T> callback, IProgress<float>? progress = null) => this.LoadAsync<GameObject>(key, gameObject => callback(gameObject.GetComponentOrThrow<T>()), progress);
+        public IEnumerator LoadComponentAsync<T>(object key, Action<T> callback, IProgress<float>? progress = null) => this.LoadAsync<GameObject>(key, gameObject => callback(gameObject.GetComponentOrThrow<T>()), progress);
 
-        public IEnumerator LoadAllComponentsAsync<T>(string key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) => this.LoadAllAsync<GameObject>(key, gameObjects => callback(GetAllComponents<T>(gameObjects)), progress);
+        public IEnumerator LoadAllComponentsAsync<T>(object key, Action<IEnumerable<T>> callback, IProgress<float>? progress = null) => this.LoadAllAsync<GameObject>(key, gameObjects => callback(GetAllComponents<T>(gameObjects)), progress);
 
-        public IEnumerator TryLoadComponentAsync<T>(string key, Action<(bool IsSucceeded, T Component)> callback, IProgress<float>? progress = null)
+        public IEnumerator TryLoadComponentAsync<T>(object key, Action<(bool IsSucceeded, T Component)> callback, IProgress<float>? progress = null)
         {
             return this.TryLoadAsync<GameObject>(
                 key,
@@ -177,9 +177,9 @@ namespace UniT.ResourceManagement
 
         #endregion
 
-        public void Unload(string key);
+        public void Unload(object key);
 
-        public void UnloadAll(string key);
+        public void UnloadAll(object key);
 
         public void Unload<T>() => this.Unload(typeof(T).GetKey());
 
