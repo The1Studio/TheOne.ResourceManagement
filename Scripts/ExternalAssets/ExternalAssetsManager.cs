@@ -10,6 +10,7 @@ namespace UniT.ResourceManagement
     using UnityEngine.Networking;
     using UnityEngine.Scripting;
     using ILogger = UniT.Logging.ILogger;
+    using Object = UnityEngine.Object;
     #if UNIT_UNITASK
     using System.Threading;
     using Cysharp.Threading.Tasks;
@@ -44,11 +45,9 @@ namespace UniT.ResourceManagement
 
             async UniTask<object> DownloadTextAsync()
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerBuffer();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequest.Get(url);
                 await this.DownloadAsync(request, progress, cancellationToken);
-                return downloadHandler.text;
+                return request.downloadHandler.text;
             }
         }
 
@@ -59,11 +58,9 @@ namespace UniT.ResourceManagement
 
             async UniTask<object> DownloadBufferAsync()
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerBuffer();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequest.Get(url);
                 await this.DownloadAsync(request, progress, cancellationToken);
-                return downloadHandler.data;
+                return request.downloadHandler.data;
             }
         }
 
@@ -74,11 +71,9 @@ namespace UniT.ResourceManagement
 
             async UniTask<object> DownloadTextureAsync()
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerTexture();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequestTexture.GetTexture(url);
                 await this.DownloadAsync(request, progress, cancellationToken);
-                return downloadHandler.texture;
+                return DownloadHandlerTexture.GetContent(request);
             }
         }
 
@@ -89,11 +84,22 @@ namespace UniT.ResourceManagement
 
             async UniTask<object> DownloadSpriteAsync()
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerTexture();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequestTexture.GetTexture(url);
                 await this.DownloadAsync(request, progress, cancellationToken);
-                return downloadHandler.texture.CreateSprite();
+                return DownloadHandlerTexture.GetContent(request).CreateSprite();
+            }
+        }
+
+        async UniTask<AudioClip> IExternalAssetsManager.DownloadAudioClipAsync(string url, AudioType audioType, bool cache, IProgress<float>? progress, CancellationToken cancellationToken)
+        {
+            if (!cache) return (AudioClip)await DownloadAudioClipAsync();
+            return (AudioClip)await this.cache.GetOrAddAsync(url, DownloadAudioClipAsync);
+
+            async UniTask<object> DownloadAudioClipAsync()
+            {
+                using var request = UnityWebRequestMultimedia.GetAudioClip(url, audioType);
+                await this.DownloadAsync(request, progress, cancellationToken);
+                return DownloadHandlerAudioClip.GetContent(request);
             }
         }
 
@@ -102,9 +108,8 @@ namespace UniT.ResourceManagement
             if (!cache || !File.Exists(savePath))
             {
                 this.logger.Debug($"Saving {url} to {savePath}");
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerFile(savePath);
-                request.downloadHandler = downloadHandler;
+                using var request = new UnityWebRequest(url);
+                request.downloadHandler = new DownloadHandlerFile(savePath);
                 await this.DownloadAsync(request, progress, cancellationToken);
             }
         }
@@ -127,11 +132,9 @@ namespace UniT.ResourceManagement
 
             IEnumerator DownloadTextAsync(Action<string> callback)
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerBuffer();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequest.Get(url);
                 yield return this.DownloadAsync(request, progress);
-                callback(downloadHandler.text);
+                callback(request.downloadHandler.text);
             }
         }
 
@@ -146,11 +149,9 @@ namespace UniT.ResourceManagement
 
             IEnumerator DownloadBufferAsync(Action<byte[]> callback)
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerBuffer();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequest.Get(url);
                 yield return this.DownloadAsync(request, progress);
-                callback(downloadHandler.data);
+                callback(request.downloadHandler.data);
             }
         }
 
@@ -165,11 +166,9 @@ namespace UniT.ResourceManagement
 
             IEnumerator DownloadTextureAsync(Action<Texture2D> callback)
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerTexture();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequestTexture.GetTexture(url);
                 yield return this.DownloadAsync(request, progress);
-                callback(downloadHandler.texture);
+                callback(DownloadHandlerTexture.GetContent(request));
             }
         }
 
@@ -184,11 +183,26 @@ namespace UniT.ResourceManagement
 
             IEnumerator DownloadSpriteAsync(Action<Sprite> callback)
             {
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerTexture();
-                request.downloadHandler = downloadHandler;
+                using var request = UnityWebRequestTexture.GetTexture(url);
                 yield return this.DownloadAsync(request, progress);
-                callback(downloadHandler.texture.CreateSprite());
+                callback(DownloadHandlerTexture.GetContent(request).CreateSprite());
+            }
+        }
+
+        IEnumerator IExternalAssetsManager.DownloadAudioClipAsync(string url, AudioType audioType, Action<AudioClip> callback, bool cache, IProgress<float>? progress)
+        {
+            if (!cache) return DownloadAudioClipAsync(callback);
+            return this.cache.GetOrAddAsync(
+                url,
+                DownloadAudioClipAsync,
+                value => callback((AudioClip)value)
+            );
+
+            IEnumerator DownloadAudioClipAsync(Action<AudioClip> callback)
+            {
+                using var request = UnityWebRequestMultimedia.GetAudioClip(url, audioType);
+                yield return this.DownloadAsync(request, progress);
+                callback(DownloadHandlerAudioClip.GetContent(request));
             }
         }
 
@@ -197,9 +211,8 @@ namespace UniT.ResourceManagement
             if (!cache || !File.Exists(savePath))
             {
                 this.logger.Debug($"Saving {url} to {savePath}");
-                using var request         = new UnityWebRequest(url);
-                using var downloadHandler = new DownloadHandlerFile(savePath);
-                request.downloadHandler = downloadHandler;
+                using var request = new UnityWebRequest(url);
+                request.downloadHandler = new DownloadHandlerFile(savePath);
                 yield return this.DownloadAsync(request, progress);
             }
             callback?.Invoke();
@@ -215,8 +228,16 @@ namespace UniT.ResourceManagement
 
         void IExternalAssetsManager.DeleteCache(string key)
         {
-            if (this.cache.Remove(key))
+            if (this.cache.Remove(key, out var obj))
             {
+                if (obj is Sprite sprite)
+                {
+                    Object.Destroy(sprite.texture);
+                }
+                if (obj is Object unityObj)
+                {
+                    Object.Destroy(unityObj);
+                }
                 this.logger.Debug($"Deleted {key}");
             }
             else if (File.Exists(key))

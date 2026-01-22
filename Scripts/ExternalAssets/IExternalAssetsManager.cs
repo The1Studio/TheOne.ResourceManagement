@@ -21,6 +21,8 @@ namespace UniT.ResourceManagement
 
         public UniTask<Sprite> DownloadSpriteAsync(string url, bool cache = true, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
 
+        public UniTask<AudioClip> DownloadAudioClipAsync(string url, AudioType audioType, bool cache = true, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
+
         public UniTask DownloadFileAsync(string url, string savePath, bool cache = true, IProgress<float>? progress = null, CancellationToken cancellationToken = default);
         #else
         public IEnumerator DownloadTextAsync(string url, Action<string> callback, bool cache = true, IProgress<float>? progress = null);
@@ -30,6 +32,8 @@ namespace UniT.ResourceManagement
         public IEnumerator DownloadTextureAsync(string url, Action<Texture2D> callback, bool cache = true, IProgress<float>? progress = null);
 
         public IEnumerator DownloadSpriteAsync(string url, Action<Sprite> callback, bool cache = true, IProgress<float>? progress = null);
+
+        public IEnumerator DownloadAudioClipAsync(string url, AudioType audioType, Action<AudioClip> callback, bool cache = true, IProgress<float>? progress = null);
 
         public IEnumerator DownloadFileAsync(string url, string savePath, Action? callback = null, bool cache = true, IProgress<float>? progress = null);
         #endif
